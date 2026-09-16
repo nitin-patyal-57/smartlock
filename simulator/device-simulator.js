@@ -1,13 +1,26 @@
-const http = require('http')
+const { initializeApp } = require('firebase/app')
+const { getDatabase, ref, set, push } = require('firebase/database')
 
-const SERVER_URL = process.argv.includes('--server')
-  ? process.argv[process.argv.indexOf('--server') + 1]
-  : 'http://localhost:5001/smart-lock-94ceb/asia-southeast1/api'
+// Your Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyBJYT8vhGKOrlzIk0z81VfEuUG_BMqE3a8",
+  authDomain: "smart-lock-94ceb.firebaseapp.com",
+  databaseURL: "https://smart-lock-94ceb-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smart-lock-94ceb",
+  storageBucket: "smart-lock-94ceb.firebasestorage.app",
+  messagingSenderId: "601872708863",
+  appId: "1:601872708863:web:c50ea1be512439dd64c8ca"
+}
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig)
+const db = getDatabase(app)
 
 const BASE_INTERVAL = process.argv.includes('--interval')
   ? parseInt(process.argv[process.argv.indexOf('--interval') + 1])
   : 2000
 
+// 8 simulated devices
 const devices = [
   {
     id: 'SL-001', name: 'Front Gate Lock', model: 'SL-PRO-200',
@@ -54,29 +67,28 @@ const devices = [
 function buildTelemetry(device) {
   const latOffset = (Math.random() - 0.5) * 0.0002
   const lngOffset = (Math.random() - 0.5) * 0.0002
-
+  
   if (!device.externalPower) {
     device.battery = Math.max(1, device.battery - Math.random() * 0.3)
   }
   if (Math.random() > 0.95) {
     device.battery = Math.min(100, device.battery + 5)
   }
-
   if (Math.random() > 0.995) {
     device.online = !device.online
   }
-
   if (Math.random() > 0.98) {
     device.locked = !device.locked
   }
 
   const tamper = Math.random() > 0.998
+  const now = new Date().toISOString()
 
   return {
     deviceId: device.id,
     deviceName: device.name,
     status: device.online ? 'online' : 'offline',
-    lastSeen: new Date().toISOString(),
+    lastSeen: now,
     device: {
       imei: `3569380${device.id.slice(-3)}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
       modelId: device.model,
@@ -85,7 +97,7 @@ function buildTelemetry(device) {
       sdkVersion: '1.8.3',
       hardwareVersion: 'HW3.2',
       bootReason: 'power_on',
-      uptime: Math.floor(Date.now() / 1000) - 100000 + Math.floor(Math.random() * 10000)
+      uptime: Math.floor(Date.now() / 1000) - 100000
     },
     power: {
       batteryVoltage: 3.0 + (device.battery / 100) * 1.2,
@@ -112,17 +124,17 @@ function buildTelemetry(device) {
       satellites: device.online ? 8 + Math.floor(Math.random() * 6) : 0,
       hdop: 1.0 + Math.random() * 2,
       accuracy: 3 + Math.random() * 10,
-      lastFix: new Date().toISOString(),
+      lastFix: now,
       lastLocation: 'Indianapolis, IN'
     },
     lock: {
       lockStatus: device.locked,
       doorStatus: !device.locked,
       motorStatus: device.locked ? 'idle' : 'running',
-      motorCurrent: device.locked ? 0 : 120 + Math.floor(Math.random() * 80),
+      motorCurrent: device.locked ? 0 : 120,
       positionSensor: true,
-      lastLockTime: device.locked ? new Date(Date.now() - 3600000).toISOString() : new Date().toISOString(),
-      lastUnlockTime: device.locked ? new Date().toISOString() : new Date(Date.now() - 3600000).toISOString(),
+      lastLockTime: device.locked ? new Date(Date.now() - 3600000).toISOString() : now,
+      lastUnlockTime: device.locked ? now : new Date(Date.now() - 3600000).toISOString(),
       unlockMethod: ['keypad', 'bluetooth', 'nfc', 'remote'][Math.floor(Math.random() * 4)],
       unlockCount: 50 + Math.floor(Math.random() * 100),
       failedUnlockCount: Math.floor(Math.random() * 3)
@@ -141,7 +153,7 @@ function buildTelemetry(device) {
       abnormalVibration: tamper,
       forcedUnlock: tamper && Math.random() > 0.7,
       tamperCount: tamper ? 1 : 0,
-      lastTamperTime: tamper ? new Date().toISOString() : ''
+      lastTamperTime: tamper ? now : ''
     },
     accelerometer: {
       motion: device.moving || Math.random() > 0.7,
@@ -193,60 +205,101 @@ function buildTelemetry(device) {
       systemHealth: tamper ? 'critical' : device.battery < 20 ? 'warning' : 'good'
     },
     rtc: {
-      rtcTime: new Date().toISOString(),
+      rtcTime: now,
       rtcSynced: true
     }
   }
 }
 
-function sendData(device) {
+async function sendToFirebase(device) {
   const data = buildTelemetry(device)
-  const payload = JSON.stringify(data)
-
-  const url = new URL(`/api/devices/${device.id}/telemetry`, SERVER_URL)
-  const options = {
-    hostname: url.hostname,
-    port: url.port || 80,
-    path: url.pathname,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(payload),
-      'X-API-Key': 'smartlock-dev-key-2024'
-    }
-  }
-
-  const req = http.request(options, (res) => {
-    let body = ''
-    res.on('data', (chunk) => body += chunk)
-    res.on('end', () => {
-      const status = device.online ? '🟢' : '🔴'
-      const battery = `${Math.round(device.battery)}%`
-      const lock = device.locked ? '🔒' : '🔓'
-      console.log(`${status} ${device.id} (${device.name}) | Battery: ${battery} | ${lock} | Sent at ${new Date().toLocaleTimeString()}`)
+  
+  try {
+    // Save latest device state
+    await set(ref(db, `smartlock/devices/${device.id}`), {
+      deviceId: device.id,
+      deviceName: device.name,
+      status: data.status,
+      lastSeen: data.lastSeen,
+      data: data,
+      updatedAt: data.lastSeen
     })
-  })
-
-  req.on('error', (err) => {
-    console.error(`❌ ${device.id} - Error: ${err.message}`)
-  })
-
-  req.write(payload)
-  req.end()
+    
+    // Save to history (GPS + battery snapshot)
+    await push(ref(db, `smartlock/history/${device.id}`), {
+      latitude: data.gps.latitude,
+      longitude: data.gps.longitude,
+      altitude: data.gps.altitude,
+      speed: data.gps.speed,
+      heading: data.gps.heading,
+      accuracy: data.gps.accuracy,
+      batteryPercentage: data.power.batteryPercentage,
+      batteryVoltage: data.power.batteryVoltage,
+      lockStatus: data.lock.lockStatus,
+      doorStatus: data.lock.doorStatus,
+      signalQuality: data.cellular.signalQuality,
+      rssi: data.cellular.rssi,
+      timestamp: data.lastSeen
+    })
+    
+    // Auto-generate alerts
+    if (data.power.batteryPercentage < 20) {
+      await push(ref(db, 'smartlock/alerts'), {
+        id: `alert-${Date.now()}-${device.id}`,
+        deviceId: device.id,
+        type: 'low_battery',
+        message: `Low battery: ${data.power.batteryPercentage}% on ${device.name}`,
+        severity: data.power.batteryPercentage < 10 ? 'critical' : 'warning',
+        timestamp: data.lastSeen,
+        acknowledged: false
+      })
+    }
+    
+    if (data.tamper.tamperStatus) {
+      await push(ref(db, 'smartlock/alerts'), {
+        id: `alert-${Date.now()}-${device.id}-tamper`,
+        deviceId: device.id,
+        type: 'tamper_detected',
+        message: `Tamper alert on ${device.name}`,
+        severity: 'critical',
+        timestamp: data.lastSeen,
+        acknowledged: false
+      })
+    }
+    
+    // Log lock/unlock activity
+    await push(ref(db, 'smartlock/activity'), {
+      id: `event-${Date.now()}-${device.id}`,
+      deviceId: device.id,
+      type: data.lock.lockStatus ? 'lock' : 'unlock',
+      message: `${device.name} ${data.lock.lockStatus ? 'locked' : 'unlocked'} via ${data.lock.unlockMethod}`,
+      timestamp: data.lastSeen,
+      metadata: { method: data.lock.unlockMethod }
+    })
+    
+    const status = device.online ? '🟢' : '🔴'
+    const battery = `${Math.round(device.battery)}%`
+    const lock = device.locked ? '🔒' : '🔓'
+    console.log(`${status} ${device.id} (${device.name}) | Battery: ${battery} | ${lock} | Sent at ${new Date().toLocaleTimeString()}`)
+    
+  } catch (error) {
+    console.error(`❌ ${device.id} - Error:`, error.message)
+  }
 }
 
 console.log('Smart Lock Device Simulator Starting...')
-console.log(`Server: ${SERVER_URL}`)
-console.log(`Base interval: ${BASE_INTERVAL}ms`)
+console.log(`Firebase: ${firebaseConfig.databaseURL}`)
 console.log(`Devices: ${devices.length}`)
+console.log(`Interval: ${BASE_INTERVAL}ms`)
 console.log('---')
 
+// Start sending data for each device with staggered intervals
 devices.forEach((device, index) => {
   const interval = BASE_INTERVAL + (index * 300) + Math.random() * 1000
-
+  
   setTimeout(() => {
-    sendData(device)
-    setInterval(() => sendData(device), interval)
+    sendToFirebase(device)
+    setInterval(() => sendToFirebase(device), interval)
   }, index * 500)
 })
 

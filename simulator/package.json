@@ -6,5 +6,8 @@
   "scripts": {
     "start": "node device-simulator.js",
     "sim": "node device-simulator.js"
+  },
+  "dependencies": {
+    "firebase": "^12.19.0"
   }
 }
