@@ -1,14 +1,13 @@
 const http = require('http')
 
-const SERVER_URL = process.argv.includes('--server') 
-  ? process.argv[process.argv.indexOf('--server') + 1] 
-  : 'http://localhost:3001'
+const SERVER_URL = process.argv.includes('--server')
+  ? process.argv[process.argv.indexOf('--server') + 1]
+  : 'http://localhost:5001/smartlock-dashboard/us-central1/api'
 
 const BASE_INTERVAL = process.argv.includes('--interval')
   ? parseInt(process.argv[process.argv.indexOf('--interval') + 1])
   : 2000
 
-// 8 simulated devices
 const devices = [
   {
     id: 'SL-001', name: 'Front Gate Lock', model: 'SL-PRO-200',
@@ -53,30 +52,24 @@ const devices = [
 ]
 
 function buildTelemetry(device) {
-  // Slight GPS movement for realism
   const latOffset = (Math.random() - 0.5) * 0.0002
   const lngOffset = (Math.random() - 0.5) * 0.0002
-  
-  // Battery drain
+
   if (!device.externalPower) {
     device.battery = Math.max(1, device.battery - Math.random() * 0.3)
   }
-  // Occasional charge
   if (Math.random() > 0.95) {
     device.battery = Math.min(100, device.battery + 5)
   }
-  
-  // Random online/offline toggle (rare)
+
   if (Math.random() > 0.995) {
     device.online = !device.online
   }
-  
-  // Random lock toggle
+
   if (Math.random() > 0.98) {
     device.locked = !device.locked
   }
-  
-  // Random tamper (very rare)
+
   const tamper = Math.random() > 0.998
 
   return {
@@ -209,11 +202,11 @@ function buildTelemetry(device) {
 function sendData(device) {
   const data = buildTelemetry(device)
   const payload = JSON.stringify(data)
-  
+
   const url = new URL(`/api/devices/${device.id}/telemetry`, SERVER_URL)
   const options = {
     hostname: url.hostname,
-    port: url.port,
+    port: url.port || 80,
     path: url.pathname,
     method: 'POST',
     headers: {
@@ -248,11 +241,9 @@ console.log(`Base interval: ${BASE_INTERVAL}ms`)
 console.log(`Devices: ${devices.length}`)
 console.log('---')
 
-// Start sending data for each device with staggered intervals
 devices.forEach((device, index) => {
   const interval = BASE_INTERVAL + (index * 300) + Math.random() * 1000
-  
-  // Initial delay stagger
+
   setTimeout(() => {
     sendData(device)
     setInterval(() => sendData(device), interval)

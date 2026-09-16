@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { wsService } from '@/services/websocket'
 import { deviceService } from '@/services/deviceService'
+import { wsService } from '@/services/websocket'
 import type { SmartLockDevice } from '@/types/smartlock'
 
 export function useRealtimeDevices() {
   const [devices, setDevices] = useState<SmartLockDevice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [connected, setConnected] = useState(false)
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -24,27 +23,22 @@ export function useRealtimeDevices() {
 
   useEffect(() => {
     fetchDevices()
-    wsService.connect()
 
-    const handleDeviceUpdate = (data: { deviceId: string; data: any; timestamp?: string }) => {
-      setDevices(prev => prev.map(d =>
-        d.deviceId === data.deviceId
-          ? { ...d, ...data.data, lastSeen: data.timestamp || new Date().toISOString(), status: 'online' as const }
-          : d
-      ))
-    }
-
-    wsService.on('device_update', handleDeviceUpdate)
-
-    const checkConnection = () => {
-      setConnected(true) // simplified - in real app check ws readyState
-    }
-    checkConnection()
+    // Subscribe to real-time updates
+    const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
+      setDevices(prev => {
+        const existing = prev.find(d => d.deviceId === deviceId)
+        if (existing) {
+          return prev.map(d => d.deviceId === deviceId ? { ...d, ...data } : d)
+        }
+        return [...prev, data as SmartLockDevice]
+      })
+    })
 
     return () => {
-      wsService.off('device_update', handleDeviceUpdate)
+      if (typeof unsubscribe === 'function') unsubscribe()
     }
   }, [fetchDevices])
 
-  return { devices, loading, error, connected, refetch: fetchDevices }
+  return { devices, loading, error, connected: true, refetch: fetchDevices }
 }
