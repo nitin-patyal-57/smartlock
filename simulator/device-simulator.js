@@ -2,7 +2,7 @@ const http = require('http')
 
 const SERVER_URL = process.argv.includes('--server')
   ? process.argv[process.argv.indexOf('--server') + 1]
-  : 'http://localhost:5001/smartlock-dashboard/us-central1/api'
+  : 'http://localhost:5001/smart-lock-94ceb/asia-southeast1/api'
 
 const BASE_INTERVAL = process.argv.includes('--interval')
   ? parseInt(process.argv[process.argv.indexOf('--interval') + 1])

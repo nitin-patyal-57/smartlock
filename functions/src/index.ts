@@ -17,6 +17,11 @@ function generateAlerts(deviceId: string, data: any): Array<{id: string, deviceI
   const alerts: Array<{id: string, deviceId: string, type: string, message: string, severity: string, timestamp: string}> = [];
   const now = new Date().toISOString();
 
+// Helper: generate alerts based on device data
+function generateAlerts(deviceId: string, data: any): Array<{id: string, deviceId: string, type: string, message: string, severity: string, timestamp: string}> {
+  const alerts: Array<{id: string, deviceId: string, type: string, message: string, severity: string, timestamp: string}> = [];
+  const now = new Date().toISOString();
+
   if (data.power?.batteryPercentage !== undefined && data.power.batteryPercentage < 20) {
     alerts.push({
       id: uuidv4(), deviceId, type: 'low_battery',
@@ -54,7 +59,7 @@ function generateAlerts(deviceId: string, data: any): Array<{id: string, deviceI
 }
 
 // Main API Cloud Function
-export const api = onRequest(async (req, res) => {
+export const api = onRequest({ region: "asia-southeast1" }, async (req, res) => {
   return corsHandler(req, res, async () => {
     const path = req.path;
     const method = req.method;

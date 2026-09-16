@@ -10,7 +10,7 @@ export const config = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
   },
   // API config (for Cloud Functions)
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/smartlock-dashboard/us-central1/api',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/smart-lock-94ceb/asia-southeast1/api',
   API_KEY: import.meta.env.VITE_API_KEY || 'smartlock-dev-key-2024',
   USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA === 'true' || false,
 }
