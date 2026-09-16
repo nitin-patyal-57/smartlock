@@ -1,0 +1,10 @@
+{
+  "name": "smartlock-simulator",
+  "version": "1.0.0",
+  "description": "Device simulator for Smart Lock Dashboard",
+  "main": "device-simulator.js",
+  "scripts": {
+    "start": "node device-simulator.js",
+    "sim": "node device-simulator.js"
+  }
+}
