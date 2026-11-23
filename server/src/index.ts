@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
+import fs from 'fs'
 import { createServer } from 'http'
 import { WebSocketServer } from 'ws'
 import { initDatabase } from './services/database'
@@ -20,28 +22,14 @@ app.use(cors({
 }))
 app.use(express.json({ limit: '50mb' }))
 
-// Routes
+// Serve static frontend assets from public/
+const publicDir = path.join(__dirname, '../public')
+app.use(express.static(publicDir))
+
+// API Routes
 app.use('/api', deviceRoutes)
 app.use('/api', alertRoutes)
 app.use('/api', activityRoutes)
-
-// Root status endpoint
-app.get('/', (req, res) => {
-  res.json({
-    service: 'SmartLock MQTT Backend API',
-    status: 'online',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    mqtt: getMqttStatus(),
-    endpoints: {
-      health: '/api/health',
-      devices: '/api/devices',
-      alerts: '/api/alerts',
-      activity: '/api/activity',
-      websocket: '/ws'
-    }
-  })
-})
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -51,6 +39,28 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime(),
     mqtt: getMqttStatus()
   })
+})
+
+// Single Page Application (SPA) fallback: serves the full Dashboard UI
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/ws')) {
+    return next()
+  }
+  const indexPath = path.join(publicDir, 'index.html')
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath)
+  } else {
+    res.json({
+      service: 'SmartLock MQTT Backend API',
+      status: 'online',
+      mqtt: getMqttStatus(),
+      endpoints: {
+        devices: '/api/devices',
+        health: '/api/health',
+        websocket: '/ws'
+      }
+    })
+  }
 })
 
 // WebSocket connection handling
@@ -70,9 +80,10 @@ initDatabase().then(() => {
   initMqttService(broadcast)
 
   server.listen(PORT, () => {
-    console.log(`SmartLock Server running on http://localhost:${PORT}`)
+    console.log(`SmartLock Server running on port ${PORT}`)
+    console.log(`Dashboard UI: http://localhost:${PORT}`)
+    console.log(`API Health: http://localhost:${PORT}/api/health`)
     console.log(`WebSocket server on ws://localhost:${PORT}/ws`)
-    console.log(`API docs: http://localhost:${PORT}/api/health`)
   })
 }).catch((err) => {
   console.error('Failed to initialize database:', err)
