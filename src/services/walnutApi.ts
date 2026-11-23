@@ -190,8 +190,8 @@ function deriveStatus(w: WalnutDevice): 'online' | 'offline' | 'warning' {
 function mapToSmartLockDevice(w: WalnutDevice, index: number): SmartLockDevice {
   const status = deriveStatus(w)
   const deviceName = w.device.model_id
-    ? `${w.device.model_id} (${w.device.imei.slice(-4)})`
-    : `Smart Lock #${index + 1}`
+    ? `${w.device.model_id} (${w.device.imei})`
+    : `Smart Lock (${w.device.imei})`
 
   const isLockStatusTrue =
     typeof w.lock.lock_status === 'boolean'
@@ -358,7 +358,7 @@ function mapToSmartLockDevice(w: WalnutDevice, index: number): SmartLockDevice {
 export function createRegisteredDevice(imei: string, index = 0): SmartLockDevice {
   return {
     deviceId: imei,
-    deviceName: `Smart Lock (${imei.length > 6 ? imei.slice(-6) : imei})`,
+    deviceName: `Smart Lock (${imei})`,
     status: 'offline',
     lastSeen: 'No telemetry data received yet',
     device: {

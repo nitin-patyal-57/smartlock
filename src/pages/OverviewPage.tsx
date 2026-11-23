@@ -27,7 +27,7 @@ export default function OverviewPage() {
   const navigate = useNavigate()
 
   const batteryData = useMemo(() => devices.map((d) => ({
-    name: d.deviceName || d.deviceId.slice(0, 8),
+    name: d.deviceId,
     battery: d.power.batteryPercentage,
   })), [devices])
 
@@ -162,7 +162,7 @@ export default function OverviewPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-700 dark:text-slate-300 truncate">{event.message}</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {event.deviceId.slice(0, 8)}... &middot;{' '}
+                      {event.deviceId} &middot;{' '}
                       {format(new Date(event.timestamp), 'MMM d, HH:mm')}
                     </p>
                   </div>
@@ -242,7 +242,7 @@ export default function OverviewPage() {
                   />
                   <div>
                     <p className="text-sm text-slate-700 dark:text-slate-300">{alert.message}</p>
-                    <p className="text-xs text-slate-400">{alert.deviceId.slice(0, 8)}...</p>
+                    <p className="text-xs text-slate-400">{alert.deviceId}</p>
                   </div>
                 </div>
                 <StatusBadge
