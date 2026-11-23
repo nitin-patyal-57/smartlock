@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDevice } from '@/hooks/useDevices'
+import { deviceService } from '@/services/deviceService'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import BatteryIndicator from '@/components/ui/BatteryIndicator'
@@ -12,7 +14,8 @@ import {
   Shield, HardDrive, Activity, Gauge,
   Navigation, Route, Circle, Thermometer, Clock,
   AlertTriangle, Key, CreditCard, Bluetooth, Radio,
-  Fingerprint, Cpu, CheckCircle2, XCircle, Info
+  Fingerprint, Cpu, CheckCircle2, XCircle, Info,
+  Zap, Sliders, RefreshCw, Power
 } from 'lucide-react'
 
 function formatDateSafe(val: string | undefined | null, pattern: string, fallback = 'N/A'): string {
@@ -106,6 +109,65 @@ export default function DeviceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { device, loading, error, refetch } = useDevice(id || '')
+  const [actionStatus, setActionStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [isActionPending, setIsActionPending] = useState(false)
+
+  const handleRelay = async (relay: 1 | 2, state: 'on' | 'off') => {
+    if (!id) return
+    setIsActionPending(true)
+    setActionStatus({ message: `Publishing Relay ${relay} -> ${state.toUpperCase()} via MQTT...`, type: 'success' })
+    try {
+      const res = await deviceService.sendRelayCommand(id, relay, state)
+      if (res.success) {
+        setActionStatus({ message: `Relay ${relay} set to ${state.toUpperCase()}! Waiting for device ack.`, type: 'success' })
+      } else {
+        setActionStatus({ message: res.error || 'Failed to send relay command', type: 'error' })
+      }
+    } catch {
+      setActionStatus({ message: 'Error sending relay command', type: 'error' })
+    } finally {
+      setIsActionPending(false)
+      setTimeout(() => setActionStatus(null), 5000)
+    }
+  }
+
+  const handleLed = async (led: 'red' | 'green' | 'blue', state: 'auto' | 'blink' | 'on' | 'off') => {
+    if (!id) return
+    setIsActionPending(true)
+    setActionStatus({ message: `Publishing ${led.toUpperCase()} LED -> ${state.toUpperCase()} via MQTT...`, type: 'success' })
+    try {
+      const res = await deviceService.sendLedCommand(id, led, state)
+      if (res.success) {
+        setActionStatus({ message: `${led.toUpperCase()} LED set to ${state.toUpperCase()}!`, type: 'success' })
+      } else {
+        setActionStatus({ message: res.error || 'Failed to send LED command', type: 'error' })
+      }
+    } catch {
+      setActionStatus({ message: 'Error sending LED command', type: 'error' })
+    } finally {
+      setIsActionPending(false)
+      setTimeout(() => setActionStatus(null), 5000)
+    }
+  }
+
+  const handleQueryStatus = async () => {
+    if (!id) return
+    setIsActionPending(true)
+    setActionStatus({ message: 'Requesting live status from device via MQTT...', type: 'success' })
+    try {
+      const res = await deviceService.queryDeviceStatus(id)
+      if (res.success) {
+        setActionStatus({ message: 'Status query sent to device!', type: 'success' })
+      } else {
+        setActionStatus({ message: res.error || 'Failed to request status', type: 'error' })
+      }
+    } catch {
+      setActionStatus({ message: 'Error requesting status', type: 'error' })
+    } finally {
+      setIsActionPending(false)
+      setTimeout(() => setActionStatus(null), 5000)
+    }
+  }
 
   if (loading) return <LoadingSpinner message="Loading device details..." className="min-h-[60vh]" />
   if (error) return <ErrorState message={error} onRetry={refetch} />
@@ -170,6 +232,120 @@ export default function DeviceDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Hardware Controls (WEGW Relays & LEDs) */}
+      <Card padding="md" className="border-indigo-100 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:border-indigo-900/40 dark:from-slate-900 dark:to-indigo-950/20">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-indigo-600 p-2 text-white shadow">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Hardware Controls (WEGW MQTT Downlink)
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Sends QoS 1 commands to <code className="font-mono text-indigo-600 dark:text-indigo-400">soundbox_dev/{d.deviceId}/command</code>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleQueryStatus}
+            disabled={isActionPending}
+            className="flex items-center gap-1.5 self-start rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isActionPending ? 'animate-spin' : ''}`} />
+            Query Device Status
+          </button>
+        </div>
+
+        {actionStatus && (
+          <div className={`mt-3 rounded-md px-3 py-2 text-xs font-medium ${actionStatus.type === 'success' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300'}`}>
+            {actionStatus.message}
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Relay 1 */}
+          <div className="rounded-lg border border-slate-200/80 bg-white p-3 shadow-xs dark:border-slate-800 dark:bg-slate-800/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Relay 1 (Ignition / Lock)</span>
+              <span className={`text-xs px-2 py-0.5 rounded font-mono font-medium ${d.relays?.['1'] === 'on' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                {d.relays?.['1'] ? d.relays['1'].toUpperCase() : 'OFF / READY'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleRelay(1, 'on')}
+                disabled={isActionPending}
+                className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                Turn ON
+              </button>
+              <button
+                onClick={() => handleRelay(1, 'off')}
+                disabled={isActionPending}
+                className="rounded bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+              >
+                Turn OFF
+              </button>
+            </div>
+          </div>
+
+          {/* Relay 2 */}
+          <div className="rounded-lg border border-slate-200/80 bg-white p-3 shadow-xs dark:border-slate-800 dark:bg-slate-800/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Relay 2 (Accessory / Siren)</span>
+              <span className={`text-xs px-2 py-0.5 rounded font-mono font-medium ${d.relays?.['2'] === 'on' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                {d.relays?.['2'] ? d.relays['2'].toUpperCase() : 'OFF / READY'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleRelay(2, 'on')}
+                disabled={isActionPending}
+                className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                Turn ON
+              </button>
+              <button
+                onClick={() => handleRelay(2, 'off')}
+                disabled={isActionPending}
+                className="rounded bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+              >
+                Turn OFF
+              </button>
+            </div>
+          </div>
+
+          {/* RGB LEDs */}
+          <div className="rounded-lg border border-slate-200/80 bg-white p-3 shadow-xs sm:col-span-2 lg:col-span-1 dark:border-slate-800 dark:bg-slate-800/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Status LEDs</span>
+              <span className="text-xs text-slate-400">Blue/Green/Red</span>
+            </div>
+            <div className="space-y-1.5">
+              {(['blue', 'green', 'red'] as const).map(color => (
+                <div key={color} className="flex items-center justify-between gap-1 text-xs">
+                  <span className="capitalize font-medium text-slate-700 dark:text-slate-300">{color}:</span>
+                  <div className="flex gap-1">
+                    {(['auto', 'blink', 'on', 'off'] as const).map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => handleLed(color, mode)}
+                        disabled={isActionPending}
+                        className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {/* Device Info */}

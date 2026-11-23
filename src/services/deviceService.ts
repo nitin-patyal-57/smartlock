@@ -227,4 +227,54 @@ export const deviceService = {
       return mockActivityEvents.filter(e => e.deviceId === deviceId)
     }
   },
+
+  async sendRelayCommand(deviceId: string, relay: 1 | 2, state: 'on' | 'off'): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${config.serverUrl}/api/devices/${deviceId}/relay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relay, state })
+      })
+      const data = await res.json()
+      return data
+    } catch (err: any) {
+      console.error('Failed to send relay command:', err)
+      return { success: false, error: err.message || 'Network error' }
+    }
+  },
+
+  async sendLedCommand(
+    deviceId: string,
+    led: 'red' | 'green' | 'blue' | 'all',
+    state: 'on' | 'off' | 'blink' | 'auto',
+    duration_s?: number
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${config.serverUrl}/api/devices/${deviceId}/led`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ led, state, duration_s })
+      })
+      const data = await res.json()
+      return data
+    } catch (err: any) {
+      console.error('Failed to send LED command:', err)
+      return { success: false, error: err.message || 'Network error' }
+    }
+  },
+
+  async queryDeviceStatus(deviceId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${config.serverUrl}/api/devices/${deviceId}/status-cmd`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      const data = await res.json()
+      return data
+    } catch (err: any) {
+      console.error('Failed to send status query command:', err)
+      return { success: false, error: err.message || 'Network error' }
+    }
+  },
 }

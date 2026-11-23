@@ -158,6 +158,15 @@ export interface SmartLockDevice {
   memory: MemoryInfo;
   diagnostics: DiagnosticsInfo;
   rtc: RtcInfo;
+  relays?: {
+    '1'?: 'on' | 'off';
+    '2'?: 'on' | 'off';
+  };
+  leds?: {
+    red?: 'auto' | 'on' | 'off' | 'blink';
+    green?: 'auto' | 'on' | 'off' | 'blink';
+    blue?: 'auto' | 'on' | 'off' | 'blink';
+  };
 }
 
 export type DeviceStatus = 'online' | 'offline' | 'warning';
