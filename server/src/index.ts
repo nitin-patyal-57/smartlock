@@ -25,6 +25,24 @@ app.use('/api', deviceRoutes)
 app.use('/api', alertRoutes)
 app.use('/api', activityRoutes)
 
+// Root status endpoint
+app.get('/', (req, res) => {
+  res.json({
+    service: 'SmartLock MQTT Backend API',
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    mqtt: getMqttStatus(),
+    endpoints: {
+      health: '/api/health',
+      devices: '/api/devices',
+      alerts: '/api/alerts',
+      activity: '/api/activity',
+      websocket: '/ws'
+    }
+  })
+})
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
