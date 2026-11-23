@@ -11,6 +11,9 @@ export const config = {
   },
   API_KEY: import.meta.env.VITE_API_KEY || 'smartlock-dev-key-2024',
   USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA === 'true' || false,
+  // Live Cloud Server URL (Render / Cloud deployment)
+  serverUrl: import.meta.env.VITE_SERVER_URL || 'https://smartlock-p4rb.onrender.com',
+  wsUrl: import.meta.env.VITE_WS_URL || 'wss://smartlock-p4rb.onrender.com/ws',
   // Walnut Medical API config
   walnut: {
     get apiKey() {

@@ -63,13 +63,13 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
-// Main service - pure MQTT from local SmartLock server (no external cloud API)
+// Main service - pure MQTT from SmartLock cloud server
 export const deviceService = {
   async getDevices(): Promise<SmartLockDevice[]> {
     if (config.USE_MOCK_DATA) return [...mockDevices]
 
     try {
-      const res = await fetch('http://localhost:3001/api/devices', { signal: AbortSignal.timeout(1500) })
+      const res = await fetch(`${config.serverUrl}/api/devices`, { signal: AbortSignal.timeout(3000) })
       if (res.ok) {
         const devices = await res.json()
         if (Array.isArray(devices) && devices.length > 0) {
@@ -77,7 +77,7 @@ export const deviceService = {
         }
       }
     } catch {
-      // Local MQTT server not reachable, try cloud fallback
+      // Cloud/local MQTT server not reachable, try cloud fallback
     }
 
     if (config.walnut.apiKey) {
@@ -95,12 +95,12 @@ export const deviceService = {
     if (config.USE_MOCK_DATA) return mockDevices.find(d => d.deviceId === id)
 
     try {
-      const res = await fetch(`http://localhost:3001/api/devices/${id}`, { signal: AbortSignal.timeout(1500) })
+      const res = await fetch(`${config.serverUrl}/api/devices/${id}`, { signal: AbortSignal.timeout(3000) })
       if (res.ok) {
         return await res.json()
       }
     } catch {
-      // Local MQTT server fallback
+      // Server fallback
     }
 
     if (config.walnut.apiKey) {
@@ -175,7 +175,7 @@ export const deviceService = {
 
   async getLocationHistory(deviceId: string, from?: string, to?: string): Promise<LocationHistoryEntry[]> {
     try {
-      const url = new URL(`http://localhost:3001/api/devices/${deviceId}/history`)
+      const url = new URL(`${config.serverUrl}/api/devices/${deviceId}/history`)
       if (from) url.searchParams.set('from', from)
       if (to) url.searchParams.set('to', to)
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(1500) })

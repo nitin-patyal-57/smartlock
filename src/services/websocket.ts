@@ -1,4 +1,5 @@
 import { database, ref, onValue, isFirebaseConfigured } from './firebase'
+import { config } from './config'
 
 type WSEventHandler = (data: any) => void
 
@@ -18,11 +19,11 @@ class RealtimeService {
     if (typeof window === 'undefined') return
 
     try {
-      const wsUrl = 'ws://localhost:3001/ws'
+      const wsUrl = config.wsUrl
       const ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
-        console.log('[WebSocket] Connected to local SmartLock server')
+        console.log(`[WebSocket] Connected to SmartLock server (${wsUrl})`)
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
           this.reconnectTimer = null

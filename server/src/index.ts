@@ -15,9 +15,7 @@ const wss = new WebSocketServer({ server, path: '/ws' })
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',')
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3002', 'https://smart-lock-94ceb.web.app'],
+  origin: true, // Allow all origins (Vercel, Firebase, localhost, etc.)
   credentials: true
 }))
 app.use(express.json({ limit: '50mb' }))
