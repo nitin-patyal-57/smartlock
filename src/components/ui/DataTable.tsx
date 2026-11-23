@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { cn } from '@/utils/helpers'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 
@@ -42,7 +42,7 @@ export default function DataTable<T extends Record<string, unknown>>({
     }
   }
 
-  const sortedData = [...data].sort((a, b) => {
+  const sortedData = useMemo(() => [...data].sort((a, b) => {
     if (!sortKey || !sortDir) return 0
     const aVal = a[sortKey]
     const bVal = b[sortKey]
@@ -51,7 +51,7 @@ export default function DataTable<T extends Record<string, unknown>>({
     if (bVal === null || bVal === undefined) return -1
     const cmp = aVal < bVal ? -1 : 1
     return sortDir === 'asc' ? cmp : -cmp
-  })
+  }), [data, sortKey, sortDir])
 
   return (
     <div className={cn('overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700', className)}>

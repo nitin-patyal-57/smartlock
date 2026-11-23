@@ -1,5 +1,5 @@
+import { useMemo } from 'react'
 import { useDevices, useActivityEvents, useAlerts } from '@/hooks/useDevices'
-import type { AlertSeverity } from '@/types/smartlock'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import BatteryIndicator from '@/components/ui/BatteryIndicator'
@@ -11,14 +11,8 @@ import { format } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import {
   Cpu, Wifi, WifiOff, AlertTriangle,
-  Lock, Unlock, MapPin, Activity, Shield
+  Lock, Unlock, Activity, Shield
 } from 'lucide-react'
-
-const severityStyles: Record<AlertSeverity, string> = {
-  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-}
 
 function getBatteryColor(pct: number) {
   if (pct > 50) return '#10b981'
@@ -31,6 +25,15 @@ export default function OverviewPage() {
   const { events, loading: eventsLoading, error: eventsError, refetch: refetchEvents } = useActivityEvents()
   const { alerts, loading: alertsLoading, error: alertsError, refetch: refetchAlerts } = useAlerts()
   const navigate = useNavigate()
+
+  const batteryData = useMemo(() => devices.map((d) => ({
+    name: d.deviceName || d.deviceId.slice(0, 8),
+    battery: d.power.batteryPercentage,
+  })), [devices])
+
+  const recentEvents = useMemo(() => [...events]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 10), [events])
 
   if (devicesLoading || eventsLoading || alertsLoading) {
     return <LoadingSpinner message="Loading dashboard..." className="min-h-[60vh]" />
@@ -49,15 +52,6 @@ export default function OverviewPage() {
   const offlineCount = devices.filter((d) => d.status === 'offline').length
   const activeAlerts = alerts.filter((a) => !a.acknowledged)
   const criticalAlerts = activeAlerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').slice(0, 5)
-
-  const batteryData = devices.map((d) => ({
-    name: d.deviceName || d.deviceId.slice(0, 8),
-    battery: d.power.batteryPercentage,
-  }))
-
-  const recentEvents = [...events]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 10)
 
   const statCards = [
     {
@@ -199,7 +193,10 @@ export default function OverviewPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {device.deviceName || device.deviceId.slice(0, 12)}
+                  {device.deviceName}
+                </p>
+                <p className="font-mono text-xs text-slate-400 truncate">
+                  {device.deviceId}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
                   <BatteryIndicator level={device.power.batteryPercentage} size="sm" />

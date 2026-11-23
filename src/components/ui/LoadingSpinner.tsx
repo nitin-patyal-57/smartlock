@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 
 interface LoadingSpinnerProps {
@@ -12,7 +13,7 @@ const sizeStyles: Record<string, string> = {
   lg: 'h-12 w-12',
 }
 
-export default function LoadingSpinner({ message, size = 'md', className }: LoadingSpinnerProps) {
+export default React.memo(function LoadingSpinner({ message, size = 'md', className }: LoadingSpinnerProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center gap-3 py-12', className)}>
       <div
@@ -27,4 +28,4 @@ export default function LoadingSpinner({ message, size = 'md', className }: Load
       )}
     </div>
   )
-}
+})

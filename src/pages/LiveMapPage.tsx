@@ -6,7 +6,7 @@ import { useDevices } from '@/hooks/useDevices'
 import { useTheme } from '@/context/ThemeContext'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { MapPin, Battery, Lock, Unlock, AlertTriangle } from 'lucide-react'
+import { MapPin, Battery, Lock, Unlock } from 'lucide-react'
 import type { SmartLockDevice } from '@/types/smartlock'
 
 const createMarkerIcon = (color: string) =>
@@ -21,6 +21,15 @@ const statusColors: Record<string, string> = {
   online: '#22c55e',
   offline: '#ef4444',
   warning: '#eab308',
+}
+
+const markerIconCache: Record<string, ReturnType<typeof divIcon>> = {}
+function getMarkerIcon(status: string) {
+  const color = statusColors[status] || statusColors.offline
+  if (!markerIconCache[color]) {
+    markerIconCache[color] = createMarkerIcon(color)
+  }
+  return markerIconCache[color]
 }
 
 function DevicePopup({ device }: { device: SmartLockDevice }) {
@@ -68,12 +77,18 @@ export default function LiveMapPage() {
     return { total: devices.length, online, offline, warning }
   }, [devices])
 
-  const center = useMemo(() => {
-    if (devices.length === 0) return [39.8283, -98.5795]
-    const lat = devices.reduce((s, d) => s + d.gps.latitude, 0) / devices.length
-    const lng = devices.reduce((s, d) => s + d.gps.longitude, 0) / devices.length
-    return [lat, lng]
+  const validGpsDevices = useMemo(() => {
+    return devices.filter(d => d.gps.latitude !== 0 && d.gps.longitude !== 0)
   }, [devices])
+
+  const pendingGpsCount = devices.length - validGpsDevices.length
+
+  const center = useMemo(() => {
+    if (validGpsDevices.length === 0) return [30.7046, 76.7178] // Default Mohali / India
+    const lat = validGpsDevices.reduce((s, d) => s + d.gps.latitude, 0) / validGpsDevices.length
+    const lng = validGpsDevices.reduce((s, d) => s + d.gps.longitude, 0) / validGpsDevices.length
+    return [lat, lng]
+  }, [validGpsDevices])
 
   if (loading) return <LoadingSpinner message="Loading map..." />
 
@@ -81,7 +96,7 @@ export default function LiveMapPage() {
     <div className="relative h-[calc(100vh-180px)] w-full">
       <MapContainer
         center={center as [number, number]}
-        zoom={4}
+        zoom={validGpsDevices.length > 0 ? 12 : 4}
         style={{ height: '100%', width: '100%' }}
         className="z-0"
       >
@@ -93,11 +108,11 @@ export default function LiveMapPage() {
               : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
           }
         />
-        {devices.map(device => (
+        {validGpsDevices.map(device => (
           <Marker
             key={device.deviceId}
             position={[device.gps.latitude, device.gps.longitude]}
-            icon={createMarkerIcon(statusColors[device.status])}
+            icon={getMarkerIcon(device.status)}
           >
             <Popup>
               <DevicePopup device={device} />
@@ -126,6 +141,15 @@ export default function LiveMapPage() {
               <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.warning}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Warning</p>
             </div>
+            {pendingGpsCount > 0 && (
+              <>
+                <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-slate-500 dark:text-slate-400">{pendingGpsCount}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">GPS Pending</p>
+                </div>
+              </>
+            )}
           </div>
         </Card>
       </div>

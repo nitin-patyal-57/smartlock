@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { deviceService } from '@/services/deviceService'
 import { wsService } from '@/services/websocket'
 import type { SmartLockDevice } from '@/types/smartlock'
@@ -7,12 +7,14 @@ export function useRealtimeDevices() {
   const [devices, setDevices] = useState<SmartLockDevice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const devicesRef = useRef<SmartLockDevice[]>([])
 
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       const data = await deviceService.getDevices()
+      devicesRef.current = data
       setDevices(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch devices')
@@ -24,12 +26,13 @@ export function useRealtimeDevices() {
   useEffect(() => {
     fetchDevices()
 
-    // Subscribe to real-time updates
     const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
       setDevices(prev => {
-        const existing = prev.find(d => d.deviceId === deviceId)
-        if (existing) {
-          return prev.map(d => d.deviceId === deviceId ? { ...d, ...data } : d)
+        const idx = prev.findIndex(d => d.deviceId === deviceId)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = { ...next[idx], ...data }
+          return next
         }
         return [...prev, data as SmartLockDevice]
       })

@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 
 interface CardProps {
@@ -15,7 +16,7 @@ const paddingStyles: Record<string, string> = {
   lg: 'p-5 sm:p-6 lg:p-8',
 }
 
-export default function Card({ children, className, hover = false, padding = 'md', onClick }: CardProps) {
+export default React.memo(function Card({ children, className, hover = false, padding = 'md', onClick }: CardProps) {
   return (
     <div
       onClick={onClick}
@@ -30,4 +31,4 @@ export default function Card({ children, className, hover = false, padding = 'md
       {children}
     </div>
   )
-}
+})

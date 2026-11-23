@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 import { AlertTriangle } from 'lucide-react'
 
@@ -8,7 +9,7 @@ interface ErrorStateProps {
   className?: string
 }
 
-export default function ErrorState({
+export default React.memo(function ErrorState({
   title = 'Something went wrong',
   message,
   onRetry,
@@ -36,4 +37,4 @@ export default function ErrorState({
       )}
     </div>
   )
-}
+})

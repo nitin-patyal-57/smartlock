@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
 
 interface ThemeContextType {
   isDark: boolean
@@ -14,13 +14,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   })
   
   useEffect(() => {
+    document.documentElement.classList.add('theme-transition')
     document.documentElement.classList.toggle('dark', isDark)
     localStorage.setItem('theme', isDark ? 'dark' : 'light')
+    const timer = setTimeout(() => document.documentElement.classList.remove('theme-transition'), 300)
+    return () => clearTimeout(timer)
   }, [isDark])
   
-  const toggleTheme = () => setIsDark(prev => !prev)
+  const toggleTheme = useCallback(() => setIsDark(prev => !prev), [])
   
-  return <ThemeContext.Provider value={{ isDark, toggleTheme }}>{children}</ThemeContext.Provider>
+  const value = useMemo(() => ({ isDark, toggleTheme }), [isDark, toggleTheme])
+  
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export const useTheme = () => useContext(ThemeContext)

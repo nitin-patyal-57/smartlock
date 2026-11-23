@@ -6,7 +6,9 @@ import { useTheme } from '@/context/ThemeContext'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import EmptyState from '@/components/ui/EmptyState'
-import { Search, MapPin, ExternalLink, Route, Clock, Ruler } from 'lucide-react'
+import RouteTracker from '@/components/route/RouteTracker'
+import RouteProgressBar from '@/components/route/RouteProgressBar'
+import { Search, MapPin, ExternalLink, Route } from 'lucide-react'
 import type { LocationHistoryEntry } from '@/types/smartlock'
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -19,12 +21,30 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-function createNumberIcon(num: number) {
+function createStartIcon() {
   return divIcon({
     className: '',
-    html: `<div style="width:24px;height:24px;border-radius:50%;background:#3b82f6;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);">${num}</div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    html: `<div style="width:32px;height:32px;border-radius:50%;background:#3b82f6;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);">S</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  })
+}
+
+function createDestinationIcon() {
+  return divIcon({
+    className: '',
+    html: `<div style="width:32px;height:32px;border-radius:50%;background:#ef4444;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:3px solid white;box-shadow:0 2px 8px rgba(239,68,68,0.5);">D</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  })
+}
+
+function createLocationPointIcon() {
+  return divIcon({
+    className: '',
+    html: `<div style="width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
   })
 }
 
@@ -130,35 +150,12 @@ export default function LocationHistoryPage() {
 
       {searched && !locationsLoading && locations.length > 0 && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                <Ruler className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Total Distance</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">{stats.distance.toFixed(2)} km</p>
-              </div>
-            </Card>
-            <Card className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
-                <Clock className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Trip Duration</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">{stats.duration.toFixed(1)} hours</p>
-              </div>
-            </Card>
-            <Card className="flex items-center gap-3">
-              <div className="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
-                <MapPin className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Data Points</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">{locations.length}</p>
-              </div>
-            </Card>
-          </div>
+          <RouteTracker locations={locations} />
+
+          <RouteProgressBar
+            totalDistance={stats.distance}
+            elapsedMinutes={Math.round(stats.duration * 60)}
+          />
 
           <Card padding="none">
             <div className="overflow-x-auto">
@@ -174,7 +171,7 @@ export default function LocationHistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {locations.map((loc: LocationHistoryEntry, idx: number) => (
+{locations.map((loc: LocationHistoryEntry) => (
                     <tr key={loc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                       <td className="px-4 py-3 text-slate-900 dark:text-white">{loc.deviceId}</td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{loc.latitude.toFixed(6)}</td>
@@ -225,15 +222,41 @@ export default function LocationHistoryPage() {
                       : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
                   }
                 />
+                {locations.length > 0 && (
+                  <>
+                    <Marker
+                      position={[locations[0].latitude, locations[0].longitude]}
+                      icon={createStartIcon()}
+                    >
+                      <Popup>
+                        <div>
+                          <p className="font-medium text-blue-600">Start Point</p>
+                          <p className="text-xs text-slate-500">{new Date(locations[0].timestamp).toLocaleString()}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                    <Marker
+                      position={[locations[locations.length - 1].latitude, locations[locations.length - 1].longitude]}
+                      icon={createDestinationIcon()}
+                    >
+                      <Popup>
+                        <div>
+                          <p className="font-medium text-red-600">Destination</p>
+                          <p className="text-xs text-slate-500">{new Date(locations[locations.length - 1].timestamp).toLocaleString()}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </>
+                )}
                 {locations.map((loc: LocationHistoryEntry, idx: number) => (
                   <Marker
                     key={loc.id}
                     position={[loc.latitude, loc.longitude]}
-                    icon={createNumberIcon(idx + 1)}
+                    icon={createLocationPointIcon()}
                   >
                     <Popup>
                       <div>
-                        <p className="font-medium">#{idx + 1}</p>
+                        <p className="font-medium">Point #{idx + 1}</p>
                         <p className="text-xs text-slate-500">{new Date(loc.timestamp).toLocaleString()}</p>
                         <p className="text-xs">Speed: {loc.speed.toFixed(1)} km/h</p>
                       </div>
@@ -247,6 +270,27 @@ export default function LocationHistoryPage() {
                   />
                 )}
               </MapContainer>
+
+              <div className="flex items-center gap-6 border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-6 rounded bg-blue-500" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Device Route</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Location Point</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full border-2 border-blue-500 bg-white" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Start</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="h-4 w-4 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                  </svg>
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Destination</span>
+                </div>
+              </div>
             </Card>
           )}
         </>

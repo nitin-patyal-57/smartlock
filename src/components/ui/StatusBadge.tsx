@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 
 type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
@@ -22,7 +23,7 @@ const sizeStyles: Record<string, string> = {
   md: 'px-2.5 py-1 text-sm',
 }
 
-export default function StatusBadge({ label, variant, size = 'sm', pulse = false }: StatusBadgeProps) {
+export default React.memo(function StatusBadge({ label, variant, size = 'sm', pulse = false }: StatusBadgeProps) {
   return (
     <span
       className={cn(
@@ -58,4 +59,4 @@ export default function StatusBadge({ label, variant, size = 'sm', pulse = false
       {label}
     </span>
   )
-}
+})

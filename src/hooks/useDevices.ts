@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
 import { deviceService } from '@/services/deviceService'
+import { useRefresh } from '@/context/RefreshContext'
 
 export function useDevices() {
   const [devices, setDevices] = useState<SmartLockDevice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchDevices = useCallback(async () => {
     try {
-      setLoading(true)
       setError(null)
       const data = await deviceService.getDevices()
       setDevices(data)
@@ -24,6 +26,25 @@ export function useDevices() {
     fetchDevices()
   }, [fetchDevices])
 
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (isAutoRefreshEnabled && refreshInterval > 0) {
+      intervalRef.current = setInterval(() => {
+        fetchDevices()
+      }, refreshInterval * 1000)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isAutoRefreshEnabled, refreshInterval, fetchDevices])
+
   return { devices, loading, error, refetch: fetchDevices }
 }
 
@@ -31,10 +52,11 @@ export function useDevice(id: string) {
   const [device, setDevice] = useState<SmartLockDevice | undefined>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchDevice = useCallback(async () => {
     try {
-      setLoading(true)
       setError(null)
       const data = await deviceService.getDeviceById(id)
       setDevice(data)
@@ -49,6 +71,25 @@ export function useDevice(id: string) {
     fetchDevice()
   }, [fetchDevice])
 
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (isAutoRefreshEnabled && refreshInterval > 0) {
+      intervalRef.current = setInterval(() => {
+        fetchDevice()
+      }, refreshInterval * 1000)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isAutoRefreshEnabled, refreshInterval, fetchDevice])
+
   return { device, loading, error, refetch: fetchDevice }
 }
 
@@ -56,10 +97,11 @@ export function useAlerts() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchAlerts = useCallback(async () => {
     try {
-      setLoading(true)
       setError(null)
       const data = await deviceService.getAlerts()
       setAlerts(data)
@@ -74,6 +116,25 @@ export function useAlerts() {
     fetchAlerts()
   }, [fetchAlerts])
 
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (isAutoRefreshEnabled && refreshInterval > 0) {
+      intervalRef.current = setInterval(() => {
+        fetchAlerts()
+      }, refreshInterval * 1000)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isAutoRefreshEnabled, refreshInterval, fetchAlerts])
+
   const acknowledgeAlert = useCallback(
     async (alertId: string) => {
       await deviceService.acknowledgeAlert(alertId)
@@ -84,18 +145,26 @@ export function useAlerts() {
     [],
   )
 
-  return { alerts, loading, error, refetch: fetchAlerts, acknowledgeAlert }
+  const acknowledgeAllAlerts = useCallback(async () => {
+    await deviceService.acknowledgeAllAlerts()
+    setAlerts((prev) =>
+      prev.map((a) => ({ ...a, acknowledged: true })),
+    )
+  }, [])
+
+  return { alerts, loading, error, refetch: fetchAlerts, acknowledgeAlert, acknowledgeAllAlerts }
 }
 
 export function useLocationHistory(deviceId: string, from?: string, to?: string) {
   const [history, setHistory] = useState<LocationHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchHistory = useCallback(async () => {
     if (!deviceId) return
     try {
-      setLoading(true)
       setError(null)
       const data = await deviceService.getLocationHistory(deviceId, from, to)
       setHistory(data)
@@ -110,6 +179,25 @@ export function useLocationHistory(deviceId: string, from?: string, to?: string)
     fetchHistory()
   }, [fetchHistory])
 
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (isAutoRefreshEnabled && refreshInterval > 0 && deviceId) {
+      intervalRef.current = setInterval(() => {
+        fetchHistory()
+      }, refreshInterval * 1000)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isAutoRefreshEnabled, refreshInterval, fetchHistory, deviceId])
+
   return { history, loading, error, refetch: fetchHistory }
 }
 
@@ -117,10 +205,11 @@ export function useActivityEvents(deviceId?: string) {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchEvents = useCallback(async () => {
     try {
-      setLoading(true)
       setError(null)
       const data = deviceId
         ? await deviceService.getActivityEventsByDevice(deviceId)
@@ -136,6 +225,25 @@ export function useActivityEvents(deviceId?: string) {
   useEffect(() => {
     fetchEvents()
   }, [fetchEvents])
+
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (isAutoRefreshEnabled && refreshInterval > 0) {
+      intervalRef.current = setInterval(() => {
+        fetchEvents()
+      }, refreshInterval * 1000)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isAutoRefreshEnabled, refreshInterval, fetchEvents])
 
   return { events, loading, error, refetch: fetchEvents }
 }

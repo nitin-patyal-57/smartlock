@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useDevices } from '@/hooks/useDevices'
 import type { SmartLockDevice } from '@/types/smartlock'
 import Card from '@/components/ui/Card'
@@ -8,7 +8,7 @@ import SignalIndicator from '@/components/ui/SignalIndicator'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   Search, LayoutGrid, List, Lock, Unlock,
@@ -63,11 +63,17 @@ function compare(a: SmartLockDevice, b: SmartLockDevice, key: SortKey, asc: bool
 export default function SmartLocksPage() {
   const { devices, loading, error, refetch } = useDevices()
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get('search') || '')
   const [filter, setFilter] = useState<FilterType>('all')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [sortKey, setSortKey] = useState<SortKey>('lastSeen')
   const [sortAsc, setSortAsc] = useState(false)
+
+  useEffect(() => {
+    const q = searchParams.get('search')
+    if (q !== null) setSearch(q)
+  }, [searchParams])
 
   const filtered = useMemo(() => {
     return devices
@@ -153,10 +159,12 @@ export default function SmartLocksPage() {
             <Card key={device.deviceId} hover padding="md" onClick={() => navigate(`/locks/${device.deviceId}`)}>
               <div className="mb-3 flex items-start justify-between">
                 <div>
-                  <p className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {device.deviceId.slice(0, 12)}...
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">
+                    {device.deviceName}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{device.device.modelId}</p>
+                  <p className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                    IMEI: {device.deviceId}
+                  </p>
                 </div>
                 <StatusBadge
                   label={device.status}
@@ -257,9 +265,9 @@ export default function SmartLocksPage() {
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-mono font-medium text-slate-900 dark:text-slate-100">
-                          {device.deviceId.slice(0, 16)}
+                          {device.deviceId}
                         </p>
-                        <p className="text-xs text-slate-500">{device.device.modelId}</p>
+                        <p className="text-xs text-slate-500">{device.deviceName}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3">

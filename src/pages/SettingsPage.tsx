@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useTheme } from '@/context/ThemeContext'
+import { useRefresh } from '@/context/RefreshContext'
 import {
   Settings,
   Bell,
@@ -58,11 +59,24 @@ function Toggle({ label, description, enabled, onChange, icon }: ToggleProps) {
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme()
+  const { refreshInterval, setRefreshInterval, isAutoRefreshEnabled, toggleAutoRefresh } = useRefresh()
   const [dashboardName, setDashboardName] = useState('Smart Lock Dashboard')
-  const [refreshInterval, setRefreshInterval] = useState('30')
   const [timezone, setTimezone] = useState('America/New_York')
   const [compactMode, setCompactMode] = useState(false)
   const [defaultMapView, setDefaultMapView] = useState('street')
+  const [walnutImei, setWalnutImei] = useState(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem('walnut_imei')) || import.meta.env.VITE_WALNUT_IMEI || '861185084122719,867509082945058'
+  })
+  const [savedSuccess, setSavedSuccess] = useState(false)
+
+  const handleSaveImei = () => {
+    localStorage.setItem('walnut_imei', walnutImei.trim())
+    setSavedSuccess(true)
+    setTimeout(() => {
+      setSavedSuccess(false)
+      window.location.reload()
+    }, 800)
+  }
 
   const [notifications, setNotifications] = useState({
     emailFailedUnlock: true,
@@ -114,7 +128,7 @@ export default function SettingsPage() {
             </label>
             <select
               value={refreshInterval}
-              onChange={e => setRefreshInterval(e.target.value)}
+              onChange={e => setRefreshInterval(parseInt(e.target.value, 10))}
               className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             >
               <option value="10">10 seconds</option>
@@ -235,45 +249,78 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Key className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">API Configuration</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Key className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Walnut IoT & API Configuration</h2>
+          </div>
+          <StatusBadge label="Live API" variant="success" pulse />
         </div>
         <div className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Target IMEI(s)</label>
+            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+              Enter one or multiple device IMEIs separated by commas (e.g. 861185084122719, 867509082945058)
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={walnutImei}
+                onChange={e => setWalnutImei(e.target.value)}
+                placeholder="861185084122719"
+                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={handleSaveImei}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+              >
+                {savedSuccess ? 'Saved!' : 'Save & Refresh'}
+              </button>
+            </div>
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">API Endpoint</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value="https://api.smartlock.example.com/v1"
+                value="https://dev.walnutmedical.ai/api/soundbox/smart_logs"
                 disabled
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"
+                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
               />
-              <StatusBadge label="Coming Soon" variant="info" />
+              <StatusBadge label="Connected" variant="success" />
             </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">API Key</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="password"
-                value="sk_xxxxxxxxxxxxxxxxxxxx"
-                disabled
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"
-              />
-              <StatusBadge label="Coming Soon" variant="info" />
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Auto Refresh</label>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Automatically refresh data every {refreshInterval} seconds
+              </p>
             </div>
+            <button
+              onClick={toggleAutoRefresh}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isAutoRefreshEnabled ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isAutoRefreshEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Polling Interval</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value="30"
+                value={`${refreshInterval}s`}
                 disabled
-                className="w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"
+                className="w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
               />
-              <StatusBadge label="Coming Soon" variant="info" />
+              <StatusBadge label={isAutoRefreshEnabled ? 'Active' : 'Paused'} variant={isAutoRefreshEnabled ? 'success' : 'warning'} />
             </div>
           </div>
         </div>
@@ -284,16 +331,15 @@ export default function SettingsPage() {
           <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Data Sources</h2>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/30 dark:bg-amber-900/10">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
           <div className="flex items-center gap-3">
-            <StatusBadge label="Mock Data" variant="warning" size="md" pulse />
+            <StatusBadge label="Walnut IoT Live" variant="success" size="md" pulse />
             <div>
               <p className="text-sm font-medium text-slate-900 dark:text-white">
-                Using simulated data for demonstration
+                Live Integration with Walnut Medical Soundbox & Smart Lock API
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Real API integration with hardware devices is pending. All device data shown in the dashboard is currently
-                generated from mock data sources for prototype demonstration purposes.
+                Data is actively fetched from <code className="text-xs bg-emerald-100 dark:bg-emerald-950 px-1 py-0.5 rounded">https://dev.walnutmedical.ai</code> for configured IMEI numbers (including {walnutImei}).
               </p>
             </div>
           </div>

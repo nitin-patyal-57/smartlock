@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 
 interface EmptyStateProps {
@@ -8,7 +9,7 @@ interface EmptyStateProps {
   className?: string
 }
 
-export default function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
+export default React.memo(function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center py-12 text-center', className)}>
       {icon && (
@@ -21,4 +22,4 @@ export default function EmptyState({ icon, title, description, action, className
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
-}
+})

@@ -63,7 +63,7 @@ export default function ReportsPage() {
       const count = alerts.filter(a => a.timestamp.startsWith(dateStr)).length
       return {
         date: format(date, 'EEE'),
-        alerts: count || Math.floor(Math.random() * 5) + 1,
+        alerts: count,
       }
     })
   }, [alerts])
@@ -71,7 +71,6 @@ export default function ReportsPage() {
   const activityData = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const date = subDays(new Date(), 6 - i)
-      const dateStr = format(date, 'yyyy-MM-dd')
       const locks = devices.reduce((sum, d) => {
         return sum + (d.lock.unlockCount > 0 ? Math.floor(Math.random() * 8) + 1 : 0)
       }, 0)

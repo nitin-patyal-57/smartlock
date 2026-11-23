@@ -15,6 +15,7 @@ import {
   Wifi,
   MapPin,
   Bell,
+  CheckCheck,
 } from 'lucide-react'
 import type { AlertSeverity } from '@/types/smartlock'
 import { formatDistanceToNow } from 'date-fns'
@@ -48,7 +49,7 @@ const typeIcons: Record<string, React.ReactNode> = {
 
 export default function AlertsPage() {
   const navigate = useNavigate()
-  const { alerts, loading, acknowledgeAlert } = useAlerts()
+  const { alerts, loading, acknowledgeAlert, acknowledgeAllAlerts } = useAlerts()
   const [filter, setFilter] = useState<SeverityFilter>('all')
   const unacknowledgedCount = alerts.filter(a => !a.acknowledged).length
 
@@ -74,14 +75,25 @@ export default function AlertsPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Alerts</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">Monitor security and device alerts</p>
         </div>
-        {unacknowledgedCount > 0 && (
-          <div className="flex items-center gap-2 rounded-full bg-red-100 px-3 py-1.5 dark:bg-red-900/30">
-            <Bell className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <span className="text-sm font-medium text-red-600 dark:text-red-400">
-              {unacknowledgedCount} unacknowledged
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {unacknowledgedCount > 0 && (
+            <button
+              onClick={acknowledgeAllAlerts}
+              className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+            >
+              <CheckCheck className="h-4 w-4" />
+              Mark all as read
+            </button>
+          )}
+          {unacknowledgedCount > 0 && (
+            <div className="flex items-center gap-2 rounded-full bg-red-100 px-3 py-1.5 dark:bg-red-900/30">
+              <Bell className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                {unacknowledgedCount} unacknowledged
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

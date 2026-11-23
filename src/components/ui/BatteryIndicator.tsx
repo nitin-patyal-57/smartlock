@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 
 interface BatteryIndicatorProps {
@@ -7,7 +8,7 @@ interface BatteryIndicatorProps {
   className?: string
 }
 
-export default function BatteryIndicator({
+export default React.memo(function BatteryIndicator({
   level,
   size = 'md',
   showLabel = false,
@@ -59,4 +60,4 @@ export default function BatteryIndicator({
       )}
     </div>
   )
-}
+})

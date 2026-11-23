@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/utils/helpers'
 
 interface SignalIndicatorProps {
@@ -7,7 +8,7 @@ interface SignalIndicatorProps {
   className?: string
 }
 
-export default function SignalIndicator({ rssi, size = 'md', className }: SignalIndicatorProps) {
+export default React.memo(function SignalIndicator({ rssi, size = 'md', className }: SignalIndicatorProps) {
   const getBarCount = () => {
     if (rssi > -50) return 4
     if (rssi > -70) return 3
@@ -45,4 +46,4 @@ export default function SignalIndicator({ rssi, size = 'md', className }: Signal
       ))}
     </div>
   )
-}
+})

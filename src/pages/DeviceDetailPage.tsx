@@ -9,11 +9,22 @@ import ErrorState from '@/components/ui/ErrorState'
 import { format } from 'date-fns'
 import {
   ArrowLeft, Battery, Lock, Unlock, MapPin, Wifi,
-  Smartphone, Shield, HardDrive, Activity, Gauge,
+  Shield, HardDrive, Activity, Gauge,
   Navigation, Route, Circle, Thermometer, Clock,
   AlertTriangle, Key, CreditCard, Bluetooth, Radio,
-  Fingerprint, Cpu, MemoryStick, CheckCircle2, XCircle
+  Fingerprint, Cpu, CheckCircle2, XCircle, Info
 } from 'lucide-react'
+
+function formatDateSafe(val: string | undefined | null, pattern: string, fallback = 'N/A'): string {
+  if (!val) return fallback
+  const d = new Date(val)
+  if (isNaN(d.getTime())) return fallback
+  try {
+    return format(d, pattern)
+  } catch {
+    return fallback
+  }
+}
 
 function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -85,6 +96,12 @@ function ScoreRing({ score }: { score: number }) {
   )
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function defaults<T>(value: T | undefined, fallback: T): T {
+  if (value == null) return fallback
+  return { ...fallback as any, ...value as any } as T
+}
+
 export default function DeviceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -94,7 +111,24 @@ export default function DeviceDetailPage() {
   if (error) return <ErrorState message={error} onRetry={refetch} />
   if (!device) return <ErrorState title="Device not found" message={`No device found with ID: ${id}`} />
 
-  const d = device
+  const d = {
+    ...device,
+    device: defaults(device.device, { imei: '', modelId: '', serialNumber: '', appVersion: '', sdkVersion: '', hardwareVersion: '', bootReason: '', uptime: 0 }),
+    power: defaults(device.power, { batteryVoltage: 0, batteryPercentage: 0, isCharging: false, isUsbConnected: false, isExternalPower: false, isLowBattery: false }),
+    cellular: defaults(device.cellular, { operator: '', networkType: '', rssi: 0, signalQuality: 0, ip: '' }),
+    gps: defaults(device.gps, { isFixed: false, latitude: 0, longitude: 0, altitude: 0, speed: 0, heading: 0, satellites: 0, hdop: 0, accuracy: 0, lastFix: '', lastLocation: '' }),
+    lock: defaults(device.lock, { lockStatus: false, doorStatus: false, motorStatus: '', motorCurrent: 0, positionSensor: false, lastLockTime: '', lastUnlockTime: '', unlockMethod: '', unlockCount: 0, failedUnlockCount: 0 }),
+    access: defaults(device.access, { keypad: { enabled: false, lastUsed: '', count: 0 }, nfc: { enabled: false, lastUsed: '', count: 0 }, bluetooth: { enabled: false, lastUsed: '', count: 0 }, remote: { enabled: false, lastUsed: '', count: 0 } }),
+    tamper: defaults(device.tamper, { tamperStatus: false, caseOpen: false, wireCut: false, lockBreak: false, abnormalVibration: false, forcedUnlock: false, tamperCount: 0, lastTamperTime: '' }),
+    accelerometer: defaults(device.accelerometer, { motion: false, x: 0, y: 0, z: 0, harshBraking: false, harshAcceleration: false, sharpTurn: false, impactCount: 0, drivingScore: 0 }),
+    trip: defaults(device.trip, { vehicleStatus: 'stationary', tripStatus: false, tripId: '', distance: 0, maximumSpeed: 0, overspeedCount: 0 }),
+    geofence: defaults(device.geofence, { status: 'inside', geofenceId: '', violation: false, lastEvent: '' }),
+    sensors: defaults(device.sensors, { temperature: 0, internalTemperature: 0, humidity: 0, hardwareSensorStatus: false }),
+    security: defaults(device.security, { deviceBinding: false, vehicleId: '', customerId: '', certificateStatus: false, secureBoot: false, firmwareSignature: false }),
+    memory: defaults(device.memory, { totalStorage: 0, usedStorage: 0, freeStorage: 0 }),
+    diagnostics: defaults(device.diagnostics, { lastDiagnosticTime: '', errorCodes: [], systemHealth: 'good' }),
+    rtc: defaults(device.rtc, { rtcTime: '', rtcSynced: false }),
+  }
 
   return (
     <div className="space-y-6">
@@ -120,6 +154,22 @@ export default function DeviceDetailPage() {
           />
         </div>
       </div>
+
+      {d.lastSeen === 'No telemetry data received yet' && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900/40 dark:bg-blue-950/20">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                Device Registered (IMEI: {d.deviceId}) &mdash; Awaiting First Telemetry Transmission
+              </p>
+              <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                This smart lock is configured in your dashboard. The Walnut Medical server is awaiting initial data packets from this hardware. Once the device powers on with active cellular service, all live telemetry (battery, GPS location, lock sensors, cellular signal) will update here in real-time.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {/* Device Info */}
@@ -181,8 +231,8 @@ export default function DeviceDetailPage() {
             label="Position Sensor"
             value={d.lock.positionSensor ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-slate-300" />}
           />
-          <InfoRow label="Last Lock" value={d.lock.lastLockTime ? format(new Date(d.lock.lastLockTime), 'MMM d, HH:mm') : 'N/A'} />
-          <InfoRow label="Last Unlock" value={d.lock.lastUnlockTime ? format(new Date(d.lock.lastUnlockTime), 'MMM d, HH:mm') : 'N/A'} />
+          <InfoRow label="Last Lock" value={formatDateSafe(d.lock.lastLockTime, 'MMM d, HH:mm')} />
+          <InfoRow label="Last Unlock" value={formatDateSafe(d.lock.lastUnlockTime, 'MMM d, HH:mm')} />
           <InfoRow label="Unlock Method" value={d.lock.unlockMethod || 'N/A'} />
           <InfoRow label="Unlocks" value={d.lock.unlockCount} />
           <InfoRow label="Failed Unlocks" value={<span className={d.lock.failedUnlockCount > 0 ? 'text-red-500' : ''}>{d.lock.failedUnlockCount}</span>} />
@@ -190,18 +240,26 @@ export default function DeviceDetailPage() {
 
         {/* Current Location */}
         <SectionCard title="Current Location" icon={<MapPin className="h-4 w-4 text-rose-500" />}>
-          <div className="h-40 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-            <iframe
-              title="Device Location"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              loading="lazy"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${d.gps.longitude - 0.01},${d.gps.latitude - 0.005},${d.gps.longitude + 0.01},${d.gps.latitude + 0.005}&layer=mapnik&marker=${d.gps.latitude},${d.gps.longitude}`}
-            />
-          </div>
-          <InfoRow label="Latitude" value={d.gps.latitude.toFixed(6)} />
-          <InfoRow label="Longitude" value={d.gps.longitude.toFixed(6)} />
+          {d.gps.latitude !== 0 && d.gps.longitude !== 0 ? (
+            <div className="h-40 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+              <iframe
+                title="Device Location"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${d.gps.longitude - 0.01},${d.gps.latitude - 0.005},${d.gps.longitude + 0.01},${d.gps.latitude + 0.005}&layer=mapnik&marker=${d.gps.latitude},${d.gps.longitude}`}
+              />
+            </div>
+          ) : (
+            <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50 p-4 text-center">
+              <MapPin className="h-8 w-8 text-slate-400 mb-2" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No GPS Coordinates</p>
+              <p className="text-xs text-slate-400">Waiting for device satellite acquisition</p>
+            </div>
+          )}
+          <InfoRow label="Latitude" value={d.gps.latitude ? d.gps.latitude.toFixed(6) : '0.000000'} />
+          <InfoRow label="Longitude" value={d.gps.longitude ? d.gps.longitude.toFixed(6) : '0.000000'} />
           <InfoRow label="Altitude" value={`${d.gps.altitude}m`} />
           <InfoRow label="Speed" value={`${d.gps.speed} km/h`} />
         </SectionCard>
@@ -215,7 +273,7 @@ export default function DeviceDetailPage() {
           <InfoRow label="Satellites" value={d.gps.satellites} />
           <InfoRow label="HDOP" value={d.gps.hdop} />
           <InfoRow label="Accuracy" value={`${d.gps.accuracy}m`} />
-          <InfoRow label="Last Fix" value={d.gps.lastFix ? format(new Date(d.gps.lastFix), 'MMM d, HH:mm:ss') : 'N/A'} />
+          <InfoRow label="Last Fix" value={formatDateSafe(d.gps.lastFix, 'MMM d, HH:mm:ss')} />
         </SectionCard>
 
         {/* Cellular */}
@@ -261,7 +319,7 @@ export default function DeviceDetailPage() {
                   </p>
                   {info.lastUsed && (
                     <p className="text-xs text-slate-400">
-                      Used {format(new Date(info.lastUsed), 'MMM d')}
+                      Used {formatDateSafe(info.lastUsed, 'MMM d')}
                     </p>
                   )}
                   <p className="text-xs text-slate-400">{info.count} uses</p>
@@ -300,7 +358,7 @@ export default function DeviceDetailPage() {
           <InfoRow label="Tamper Count" value={d.tamper.tamperCount} />
           <InfoRow
             label="Last Tamper"
-            value={d.tamper.lastTamperTime ? format(new Date(d.tamper.lastTamperTime), 'MMM d, HH:mm') : 'N/A'}
+            value={formatDateSafe(d.tamper.lastTamperTime, 'MMM d, HH:mm')}
           />
         </SectionCard>
 
@@ -471,9 +529,9 @@ export default function DeviceDetailPage() {
           />
           <InfoRow
             label="Last Diagnostic"
-            value={d.diagnostics.lastDiagnosticTime ? format(new Date(d.diagnostics.lastDiagnosticTime), 'MMM d, HH:mm') : 'N/A'}
+            value={formatDateSafe(d.diagnostics.lastDiagnosticTime, 'MMM d, HH:mm')}
           />
-          {d.diagnostics.errorCodes.length > 0 ? (
+          {d.diagnostics.errorCodes?.length > 0 ? (
             <div className="space-y-1">
               <span className="text-xs font-medium text-slate-500">Error Codes</span>
               <div className="flex flex-wrap gap-1">
@@ -496,7 +554,7 @@ export default function DeviceDetailPage() {
         <SectionCard title="RTC" icon={<Clock className="h-4 w-4 text-slate-400" />}>
           <InfoRow
             label="RTC Time"
-            value={d.rtc.rtcTime ? format(new Date(d.rtc.rtcTime), 'MMM d, HH:mm:ss') : 'N/A'}
+            value={formatDateSafe(d.rtc.rtcTime, 'MMM d, HH:mm:ss')}
           />
           <InfoRow
             label="Synced"

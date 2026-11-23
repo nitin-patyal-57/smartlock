@@ -2,43 +2,9 @@ import { config } from './config'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
 import { mockDevices, mockAlerts, mockLocationHistory, mockActivityEvents } from './mockData'
 import { database, ref, onValue, get, query, orderByChild, startAt, endAt, isFirebaseConfigured } from './firebase'
+import { fetchWalnutDevices, fetchWalnutDeviceByImei } from './walnutApi'
 
 // Firebase-based implementation
-async function fetchDevicesFromFirebase(): Promise<SmartLockDevice[]> {
-  if (!isFirebaseConfigured()) throw new Error('Firebase not configured')
-  const db = database!
-  const snapshot = await get(ref(db, 'smartlock/devices'))
-  if (!snapshot.exists()) return []
-
-  const devices: SmartLockDevice[] = []
-  snapshot.forEach((child) => {
-    const val = child.val()
-    devices.push({
-      ...val.data,
-      status: val.status,
-      lastSeen: val.lastSeen,
-      deviceId: val.deviceId,
-      deviceName: val.deviceName
-    })
-  })
-  return devices
-}
-
-async function fetchDeviceFromFirebase(id: string): Promise<SmartLockDevice | undefined> {
-  if (!isFirebaseConfigured()) throw new Error('Firebase not configured')
-  const db = database!
-  const snapshot = await get(ref(db, `smartlock/devices/${id}`))
-  if (!snapshot.exists()) return undefined
-  const val = snapshot.val()
-  return {
-    ...val.data,
-    status: val.status,
-    lastSeen: val.lastSeen,
-    deviceId: val.deviceId,
-    deviceName: val.deviceName
-  }
-}
-
 async function fetchAlertsFromFirebase(): Promise<Alert[]> {
   if (!isFirebaseConfigured()) throw new Error('Firebase not configured')
   const db = database!
@@ -97,26 +63,34 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
-// Main service with Firebase-first, mock fallback
+// Main service - devices come ONLY from the Walnut API (not the simulator/Firebase)
 export const deviceService = {
   async getDevices(): Promise<SmartLockDevice[]> {
-    try {
-      if (config.USE_MOCK_DATA) throw new Error('Using mock data')
-      return await fetchDevicesFromFirebase()
-    } catch (e) {
-      console.warn('Falling back to mock data:', e)
-      return [...mockDevices]
+    if (config.USE_MOCK_DATA) return [...mockDevices]
+
+    if (config.walnut.apiKey) {
+      try {
+        return await fetchWalnutDevices()
+      } catch (e) {
+        console.warn('Walnut API failed:', e)
+      }
     }
+
+    return []
   },
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
-    try {
-      if (config.USE_MOCK_DATA) throw new Error('Using mock data')
-      return await fetchDeviceFromFirebase(id)
-    } catch (e) {
-      console.warn('Falling back to mock data:', e)
-      return mockDevices.find(d => d.deviceId === id)
+    if (config.USE_MOCK_DATA) return mockDevices.find(d => d.deviceId === id)
+
+    if (config.walnut.apiKey) {
+      try {
+        return await fetchWalnutDeviceByImei(id)
+      } catch (e) {
+        console.warn('Walnut API failed:', e)
+      }
     }
+
+    return undefined
   },
 
   async getAlerts(): Promise<Alert[]> {
@@ -149,9 +123,33 @@ export const deviceService = {
     } catch (e) {
       console.warn('Firebase acknowledge failed, using local:', e)
     }
-    // Fallback: mutate mock data
     const alert = mockAlerts.find(a => a.id === alertId)
     if (alert) alert.acknowledged = true
+  },
+
+  async acknowledgeAllAlerts(): Promise<void> {
+    try {
+      if (isFirebaseConfigured()) {
+        const { get: fbGet, ref: fbRef, update: fbUpdate } = await import('firebase/database')
+        const snapshot = await fbGet(fbRef(database!, 'smartlock/alerts'))
+        if (snapshot.exists()) {
+          const updates: Record<string, boolean> = {}
+          snapshot.forEach((child) => {
+            const alert = child.val()
+            if (!alert.acknowledged) {
+              updates[`smartlock/alerts/${child.key}/acknowledged`] = true
+            }
+          })
+          if (Object.keys(updates).length > 0) {
+            await fbUpdate(fbRef(database!), updates)
+          }
+        }
+        return
+      }
+    } catch (e) {
+      console.warn('Firebase acknowledgeAll failed, using local:', e)
+    }
+    mockAlerts.forEach(a => { a.acknowledged = true })
   },
 
   async getLocationHistory(deviceId: string, from?: string, to?: string): Promise<LocationHistoryEntry[]> {

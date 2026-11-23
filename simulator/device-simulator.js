@@ -168,7 +168,7 @@ function buildTelemetry(device) {
     },
     trip: {
       vehicleStatus: device.moving ? 'moving' : 'stationary',
-      tripStatus: device.moving,
+      tripStatus: !!device.moving,
       tripId: device.moving ? `TRIP-${Date.now()}` : '',
       distance: device.moving ? Math.round(Math.random() * 50 * 10) / 10 : 0,
       maximumSpeed: device.moving ? Math.round(30 + Math.random() * 30) : 0,
