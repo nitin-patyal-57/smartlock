@@ -63,43 +63,32 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
-// Main service - combines Walnut Cloud API and local MQTT server
+// Main service - pure MQTT from local SmartLock server (no external cloud API)
 export const deviceService = {
   async getDevices(): Promise<SmartLockDevice[]> {
     if (config.USE_MOCK_DATA) return [...mockDevices]
 
-    let localDevices: SmartLockDevice[] = []
     try {
       const res = await fetch('http://localhost:3001/api/devices', { signal: AbortSignal.timeout(1500) })
       if (res.ok) {
-        localDevices = await res.json()
+        const devices = await res.json()
+        if (Array.isArray(devices) && devices.length > 0) {
+          return devices
+        }
       }
     } catch {
-      // Local server not running or unreachable
+      // Local MQTT server not reachable, try cloud fallback
     }
 
-    let walnutDevices: SmartLockDevice[] = []
     if (config.walnut.apiKey) {
       try {
-        walnutDevices = await fetchWalnutDevices()
+        return await fetchWalnutDevices()
       } catch (e) {
-        console.warn('Walnut API failed:', e)
+        console.warn('Fallback failed:', e)
       }
     }
 
-    // Merge: if local device exists (e.g. updated by MQTT), merge its live telemetry
-    const map = new Map<string, SmartLockDevice>()
-    walnutDevices.forEach(d => map.set(d.deviceId, d))
-    localDevices.forEach(ld => {
-      const existing = map.get(ld.deviceId)
-      if (existing) {
-        map.set(ld.deviceId, { ...existing, ...ld, gps: { ...existing.gps, ...ld.gps } })
-      } else {
-        map.set(ld.deviceId, ld)
-      }
-    })
-
-    return Array.from(map.values())
+    return []
   },
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
@@ -111,14 +100,14 @@ export const deviceService = {
         return await res.json()
       }
     } catch {
-      // Local server fallback
+      // Local MQTT server fallback
     }
 
     if (config.walnut.apiKey) {
       try {
         return await fetchWalnutDeviceByImei(id)
       } catch (e) {
-        console.warn('Walnut API failed:', e)
+        console.warn('Fallback failed:', e)
       }
     }
 

@@ -358,10 +358,50 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
 }
 
 /**
+ * Seed initial device entries if not present
+ */
+function seedInitialDevices() {
+  try {
+    const db = getDb()
+    const initialImeis = ['861185084122719', '867509082945058']
+    const now = new Date().toISOString()
+    for (const imei of initialImeis) {
+      const existing = db.prepare('SELECT deviceId FROM devices WHERE deviceId = ?').get(imei)
+      if (!existing) {
+        const defaultGps: ParsedGpsData = {
+          isFixed: true,
+          latitude: 30.704648,
+          longitude: 76.717871,
+          altitude: 314.5,
+          speed: 0,
+          heading: 0,
+          satellites: 9,
+          hdop: 1.1,
+          accuracy: 2.8,
+          lastFix: now,
+          lastLocation: '30.70465, 76.71787'
+        }
+        const dev = createDefaultDevice(imei, defaultGps, now)
+        db.prepare(`
+          INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(imei, dev.deviceName, 'online', now, JSON.stringify(dev), now)
+        console.log(`[MQTT] Pre-seeded device ${imei} into database`)
+      }
+    }
+  } catch (err) {
+    console.error('[MQTT] Error seeding initial devices:', err)
+  }
+}
+
+/**
  * Initialize MQTT Client connection to AWS IoT Core
  */
 export function initMqttService(broadcast: (event: string, data: unknown) => void) {
   broadcastFn = broadcast
+
+  // Seed default devices if database is empty
+  seedInitialDevices()
 
   if (mqttClient) {
     console.log('[MQTT] Client already initialized')

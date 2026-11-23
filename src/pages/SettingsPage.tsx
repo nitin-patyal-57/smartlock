@@ -131,10 +131,11 @@ export default function SettingsPage() {
               onChange={e => setRefreshInterval(parseInt(e.target.value, 10))}
               className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             >
+              <option value="1">1 second (Real-Time MQTT)</option>
+              <option value="5">5 seconds</option>
               <option value="10">10 seconds</option>
               <option value="30">30 seconds</option>
               <option value="60">1 minute</option>
-              <option value="300">5 minutes</option>
             </select>
           </div>
           <div>

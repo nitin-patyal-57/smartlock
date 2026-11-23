@@ -8,7 +8,7 @@ interface RefreshContextType {
 }
 
 const RefreshContext = createContext<RefreshContextType>({
-  refreshInterval: 30,
+  refreshInterval: 1,
   setRefreshInterval: () => {},
   isAutoRefreshEnabled: true,
   toggleAutoRefresh: () => {},
@@ -17,7 +17,7 @@ const RefreshContext = createContext<RefreshContextType>({
 export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const [refreshInterval, setRefreshIntervalState] = useState(() => {
     const saved = localStorage.getItem('refreshInterval')
-    return saved ? parseInt(saved, 10) : 30
+    return saved ? parseInt(saved, 10) : 1
   })
 
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(() => {

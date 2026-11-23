@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
 import { deviceService } from '@/services/deviceService'
+import { wsService } from '@/services/websocket'
 import { useRefresh } from '@/context/RefreshContext'
 
 export function useDevices() {
@@ -24,6 +25,23 @@ export function useDevices() {
 
   useEffect(() => {
     fetchDevices()
+
+    // Real-time WebSocket listener: receives live MQTT pushes (every 1s)
+    const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
+      setDevices(prev => {
+        const idx = prev.findIndex(d => d.deviceId === deviceId)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = { ...next[idx], ...data, gps: { ...next[idx].gps, ...data.gps } }
+          return next
+        }
+        return [...prev, data as SmartLockDevice]
+      })
+    })
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe()
+    }
   }, [fetchDevices])
 
   useEffect(() => {
@@ -69,7 +87,18 @@ export function useDevice(id: string) {
 
   useEffect(() => {
     fetchDevice()
-  }, [fetchDevice])
+
+    // Real-time WebSocket listener for single device
+    const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
+      if (deviceId === id) {
+        setDevice(prev => prev ? { ...prev, ...data, gps: { ...prev.gps, ...data.gps } } : data as SmartLockDevice)
+      }
+    })
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe()
+    }
+  }, [fetchDevice, id])
 
   useEffect(() => {
     if (intervalRef.current) {
