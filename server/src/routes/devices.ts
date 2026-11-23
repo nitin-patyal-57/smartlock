@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { getDb } from '../services/database'
 import { v4 as uuidv4 } from 'uuid'
+import { publishGpsCommand } from '../services/mqttService'
 
 const router = Router()
 
@@ -73,6 +74,28 @@ router.post('/devices/:id/telemetry', (req: Request, res: Response) => {
     res.json({ success: true, deviceId, timestamp: now })
   } catch (error) {
     console.error('Error processing telemetry:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/devices/:id/command - Send downlink command to device via MQTT
+router.post('/devices/:id/command', async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.params.id as string
+    const { command } = req.body
+
+    if (!command || typeof command !== 'string') {
+      return res.status(400).json({ error: 'Command string is required (e.g. "stream=1")' })
+    }
+
+    const success = await publishGpsCommand(deviceId, command)
+    if (success) {
+      res.json({ success: true, deviceId, command, timestamp: new Date().toISOString() })
+    } else {
+      res.status(502).json({ error: 'Failed to publish command to MQTT broker', deviceId })
+    }
+  } catch (error) {
+    console.error('Error publishing command:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

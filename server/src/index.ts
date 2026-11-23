@@ -1,12 +1,13 @@
 import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
-import { WebSocketServer, WebSocket } from 'ws'
+import { WebSocketServer } from 'ws'
 import { initDatabase } from './services/database'
 import deviceRoutes from './routes/devices'
 import alertRoutes from './routes/alerts'
 import activityRoutes from './routes/activity'
-import { broadcast } from './services/websocket'
+import { broadcast, addClient } from './services/websocket'
+import { initMqttService, getMqttStatus } from './services/mqttService'
 
 const app = express()
 const server = createServer(app)
@@ -23,13 +24,18 @@ app.use('/api', activityRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() })
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    mqtt: getMqttStatus()
+  })
 })
 
 // WebSocket connection handling
 wss.on('connection', (ws) => {
   console.log('WebSocket client connected')
-  ws.on('close', () => console.log('WebSocket client disconnected'))
+  addClient(ws)
 })
 
 // Make broadcast available to routes
@@ -39,6 +45,9 @@ app.set('broadcast', broadcast)
 const PORT = process.env.PORT || 3001
 
 initDatabase().then(() => {
+  // Start MQTT background bridge
+  initMqttService(broadcast)
+
   server.listen(PORT, () => {
     console.log(`SmartLock Server running on http://localhost:${PORT}`)
     console.log(`WebSocket server on ws://localhost:${PORT}/ws`)
