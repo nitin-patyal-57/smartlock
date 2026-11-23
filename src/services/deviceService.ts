@@ -63,24 +63,56 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
-// Main service - devices come ONLY from the Walnut API (not the simulator/Firebase)
+// Main service - combines Walnut Cloud API and local MQTT server
 export const deviceService = {
   async getDevices(): Promise<SmartLockDevice[]> {
     if (config.USE_MOCK_DATA) return [...mockDevices]
 
+    let localDevices: SmartLockDevice[] = []
+    try {
+      const res = await fetch('http://localhost:3001/api/devices', { signal: AbortSignal.timeout(1500) })
+      if (res.ok) {
+        localDevices = await res.json()
+      }
+    } catch {
+      // Local server not running or unreachable
+    }
+
+    let walnutDevices: SmartLockDevice[] = []
     if (config.walnut.apiKey) {
       try {
-        return await fetchWalnutDevices()
+        walnutDevices = await fetchWalnutDevices()
       } catch (e) {
         console.warn('Walnut API failed:', e)
       }
     }
 
-    return []
+    // Merge: if local device exists (e.g. updated by MQTT), merge its live telemetry
+    const map = new Map<string, SmartLockDevice>()
+    walnutDevices.forEach(d => map.set(d.deviceId, d))
+    localDevices.forEach(ld => {
+      const existing = map.get(ld.deviceId)
+      if (existing) {
+        map.set(ld.deviceId, { ...existing, ...ld, gps: { ...existing.gps, ...ld.gps } })
+      } else {
+        map.set(ld.deviceId, ld)
+      }
+    })
+
+    return Array.from(map.values())
   },
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
     if (config.USE_MOCK_DATA) return mockDevices.find(d => d.deviceId === id)
+
+    try {
+      const res = await fetch(`http://localhost:3001/api/devices/${id}`, { signal: AbortSignal.timeout(1500) })
+      if (res.ok) {
+        return await res.json()
+      }
+    } catch {
+      // Local server fallback
+    }
 
     if (config.walnut.apiKey) {
       try {
@@ -153,6 +185,32 @@ export const deviceService = {
   },
 
   async getLocationHistory(deviceId: string, from?: string, to?: string): Promise<LocationHistoryEntry[]> {
+    try {
+      const url = new URL(`http://localhost:3001/api/devices/${deviceId}/history`)
+      if (from) url.searchParams.set('from', from)
+      if (to) url.searchParams.set('to', to)
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(1500) })
+      if (res.ok) {
+        const rows = await res.json()
+        if (Array.isArray(rows) && rows.length > 0) {
+          return rows.map((r: any) => ({
+            id: String(r.id),
+            deviceId: r.deviceId,
+            latitude: r.latitude,
+            longitude: r.longitude,
+            altitude: r.altitude,
+            speed: r.speed,
+            heading: r.heading,
+            accuracy: r.accuracy,
+            timestamp: r.timestamp,
+            isFixed: true,
+          }))
+        }
+      }
+    } catch {
+      // Local server fallback
+    }
+
     try {
       if (config.USE_MOCK_DATA) throw new Error('Using mock data')
       return await fetchLocationHistoryFromFirebase(deviceId, from, to)
