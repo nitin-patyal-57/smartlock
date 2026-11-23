@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { getDb } from '../services/database'
 import { v4 as uuidv4 } from 'uuid'
-import { publishGpsCommand } from '../services/mqttService'
+import { publishGpsCommand, publishRelayCommand, publishLedCommand, publishStatusCommand } from '../services/mqttService'
 
 const router = Router()
 
@@ -96,6 +96,74 @@ router.post('/devices/:id/command', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('Error publishing command:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/devices/:id/relay - Send relay command: {"relay": 1, "state": "on" | "off"}
+router.post('/devices/:id/relay', async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.params.id as string
+    const { relay, state } = req.body
+
+    const relayNum = Number(relay) as 1 | 2
+    if (relayNum !== 1 && relayNum !== 2) {
+      return res.status(400).json({ error: 'Relay must be 1 or 2' })
+    }
+    if (state !== 'on' && state !== 'off') {
+      return res.status(400).json({ error: 'State must be "on" or "off"' })
+    }
+
+    const success = await publishRelayCommand(deviceId, relayNum, state)
+    if (success) {
+      res.json({ success: true, deviceId, relay: relayNum, state, timestamp: new Date().toISOString() })
+    } else {
+      res.status(502).json({ error: 'Failed to publish relay command', deviceId })
+    }
+  } catch (error) {
+    console.error('Error publishing relay command:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/devices/:id/led - Send LED command: {"led": "red"|"green"|"blue"|"all", "state": "on"|"off"|"blink"|"auto", "duration_s": 10}
+router.post('/devices/:id/led', async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.params.id as string
+    const { led, state, duration_s } = req.body
+
+    if (!['red', 'green', 'blue', 'all'].includes(led)) {
+      return res.status(400).json({ error: 'led must be red, green, blue or all' })
+    }
+    if (!['on', 'off', 'blink', 'auto'].includes(state)) {
+      return res.status(400).json({ error: 'state must be on, off, blink or auto' })
+    }
+
+    const durationS = typeof duration_s === 'number' ? duration_s : 0
+    const success = await publishLedCommand(deviceId, led, state, durationS)
+    if (success) {
+      res.json({ success: true, deviceId, led, state, duration_s: durationS, timestamp: new Date().toISOString() })
+    } else {
+      res.status(502).json({ error: 'Failed to publish LED command', deviceId })
+    }
+  } catch (error) {
+    console.error('Error publishing LED command:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/devices/:id/status-cmd - Send status command: {"cmd": "status"}
+router.post('/devices/:id/status-cmd', async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.params.id as string
+    const success = await publishStatusCommand(deviceId)
+    if (success) {
+      res.json({ success: true, deviceId, timestamp: new Date().toISOString() })
+    } else {
+      res.status(502).json({ error: 'Failed to publish status command', deviceId })
+    }
+  } catch (error) {
+    console.error('Error publishing status command:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
