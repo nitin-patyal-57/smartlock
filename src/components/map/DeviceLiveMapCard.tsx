@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
-import { Navigation, Gauge, Compass, Satellite, MapPin } from 'lucide-react'
+import { Navigation, Gauge, Compass, Satellite, MapPin, Sparkles } from 'lucide-react'
 import type { SmartLockDevice } from '@/types/smartlock'
 import {
   MAP_LAYERS,
@@ -16,6 +17,7 @@ interface DeviceLiveMapCardProps {
 }
 
 export function DeviceLiveMapCard({ device }: DeviceLiveMapCardProps) {
+  const navigate = useNavigate()
   const [currentLayer, setCurrentLayer] = useState<MapLayerType>('google-streets')
 
   const hasGps = device.gps && device.gps.latitude !== 0 && device.gps.longitude !== 0
@@ -55,8 +57,8 @@ export function DeviceLiveMapCard({ device }: DeviceLiveMapCardProps) {
         <MapLayerSwitcher currentLayer={currentLayer} onLayerChange={setCurrentLayer} />
       </div>
 
-      {/* Top Left Status Badge */}
-      <div className="absolute top-2.5 left-2.5 z-[1000]">
+      {/* Top Left Status Badge & Delivery Button */}
+      <div className="absolute top-2.5 left-2.5 z-[1000] flex items-center gap-1.5">
         <div className="flex items-center gap-1.5 rounded-lg bg-slate-900/85 px-2.5 py-1 text-[11px] font-bold text-white shadow-md backdrop-blur-xs">
           <span
             className={`h-2 w-2 rounded-full ${
@@ -66,6 +68,13 @@ export function DeviceLiveMapCard({ device }: DeviceLiveMapCardProps) {
           <span>{moving ? 'LIVE MOVING' : 'STATIONARY'}</span>
           {moving && <span>• {device.gps.speed.toFixed(1)} km/h</span>}
         </div>
+        <button
+          onClick={() => navigate(`/map?view=delivery&deviceId=${device.deviceId}`)}
+          className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-orange-500 to-amber-600 px-2 py-1 text-[11px] font-bold text-white shadow-md hover:from-orange-600 hover:to-amber-700 transition"
+          title="Open real-time delivery boy animation & road plotting"
+        >
+          <span>🛵 Delivery View</span>
+        </button>
       </div>
 
       <MapContainer

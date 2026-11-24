@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import { useDevices } from '@/hooks/useDevices'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import {
   MapPin, Battery, Lock, Unlock, Navigation, Gauge,
-  Compass, Satellite, Eye, Crosshair, ArrowRight
+  Compass, Satellite, Eye, Crosshair, ArrowRight, Sparkles
 } from 'lucide-react'
 import type { SmartLockDevice } from '@/types/smartlock'
 import {
@@ -17,6 +17,7 @@ import {
   isDeviceMoving,
 } from '@/components/map/mapLayers'
 import { MapLayerSwitcher } from '@/components/map/MapLayerSwitcher'
+import { DeliveryTracker } from '@/components/map/DeliveryTracker'
 
 /**
  * Controller to smoothly pan the map when following a moving device or centering.
@@ -129,6 +130,8 @@ function DevicePopupContent({
 
 export default function LiveMapPage() {
   const { devices, loading } = useDevices()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [viewMode, setViewMode] = useState<'delivery' | 'fleet'>('delivery')
   const [currentLayer, setCurrentLayer] = useState<MapLayerType>('google-streets')
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [isFollowing, setIsFollowing] = useState<boolean>(false)
@@ -219,12 +222,37 @@ export default function LiveMapPage() {
 
   if (loading) return <LoadingSpinner message="Connecting to live GPS map..." />
 
+  // Render Live Delivery Boy Moving Experience (Swiggy / Zomato style)
+  if (viewMode === 'delivery' && activeDevice) {
+    return (
+      <DeliveryTracker
+        device={activeDevice}
+        currentLayer={currentLayer}
+        onLayerChange={setCurrentLayer}
+        onSwitchToFleet={() => setViewMode('fleet')}
+      />
+    )
+  }
+
   return (
     <div className="relative h-[calc(100vh-170px)] w-full overflow-hidden rounded-2xl shadow-xl">
       {/* Top Floating Controls Bar */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-wrap items-center justify-between gap-3 pointer-events-none">
         {/* Left: Device Filter Chips & Stats */}
         <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+          {/* Switch to Delivery Tracking Mode */}
+          <button
+            onClick={() => setViewMode('delivery')}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg hover:from-orange-600 hover:to-amber-700 transition"
+          >
+            <span>🛵</span>
+            <span>Live Delivery Tracking</span>
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-200 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+          </button>
+
           <Card padding="sm" className="shadow-lg backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
             <div className="flex items-center gap-2 text-xs font-semibold">
               <button
@@ -436,6 +464,15 @@ export default function LiveMapPage() {
                 Alt: {activeDevice.gps.altitude}m
               </span>
             </div>
+
+            {/* Delivery Tracking CTA */}
+            <button
+              onClick={() => setViewMode('delivery')}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 py-2.5 text-xs font-bold text-white shadow-md hover:from-orange-600 hover:to-amber-700 transition"
+            >
+              <span>🛵 Track in Live Delivery Boy Mode</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
           </Card>
         </div>
       )}

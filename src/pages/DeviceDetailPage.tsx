@@ -657,18 +657,35 @@ export default function DeviceDetailPage() {
         </SectionCard>
 
         {/* Memory / Storage */}
-        <SectionCard title="Memory & Storage" icon={<HardDrive className="h-4 w-4 text-slate-500" />}>
+        <SectionCard title="Flash Memory & Storage" icon={<HardDrive className="h-4 w-4 text-slate-500" />}>
           <div>
-            <div className="mb-1 flex justify-between text-xs text-slate-500">
-              <span>Used: {(d.memory.usedStorage / 1024).toFixed(1)} MB</span>
-              <span>Total: {(d.memory.totalStorage / 1024).toFixed(1)} MB</span>
-            </div>
-            <ProgressBar
-              value={d.memory.usedStorage}
-              max={d.memory.totalStorage}
-              color="bg-gradient-to-r from-primary-400 to-primary-600"
-            />
-            <p className="mt-1 text-xs text-slate-400">Free: {(d.memory.freeStorage / 1024).toFixed(1)} MB</p>
+            {(() => {
+              // totalStorage can be in bytes (> 1MB = 1048576) or KB (<= 65536)
+              const isBytes = d.memory.totalStorage > 1048576
+              const totalMB = isBytes
+                ? (d.memory.totalStorage / (1024 * 1024)).toFixed(1)
+                : (d.memory.totalStorage / 1024).toFixed(1)
+              const usedMB = isBytes
+                ? (d.memory.usedStorage / (1024 * 1024)).toFixed(1)
+                : (d.memory.usedStorage / 1024).toFixed(1)
+              const freeMB = isBytes
+                ? (d.memory.freeStorage / (1024 * 1024)).toFixed(1)
+                : (d.memory.freeStorage / 1024).toFixed(1)
+              return (
+                <>
+                  <div className="mb-1 flex justify-between text-xs text-slate-500">
+                    <span>Used: {usedMB} MB</span>
+                    <span>Total: {totalMB} MB (Onboard SPI Flash)</span>
+                  </div>
+                  <ProgressBar
+                    value={d.memory.usedStorage}
+                    max={d.memory.totalStorage}
+                    color="bg-gradient-to-r from-primary-400 to-primary-600"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">Free: {freeMB} MB available for offline logging</p>
+                </>
+              )
+            })()}
           </div>
         </SectionCard>
 

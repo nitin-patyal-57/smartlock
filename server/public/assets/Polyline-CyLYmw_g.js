@@ -1,0 +1,1 @@
+import{g as e,h as t,m as n,p as r}from"./MapLayerSwitcher-InQWbSYj.js";var i=t(),a=r(function({positions:t,...r},a){let o=new i.Polyline(t,r);return n(o,e(a,{overlayContainer:o}))},function(e,t,n){t.positions!==n.positions&&e.setLatLngs(t.positions)});export{a as t};

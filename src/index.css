@@ -92,3 +92,55 @@ body {
 .vehicle-heading-arrow {
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Delivery Boy Live Tracking Marker & Route Animations */
+@keyframes delivery-pulse {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.delivery-radar-pulse {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(249, 115, 22, 0.4);
+  animation: delivery-pulse 1.6s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+  pointer-events: none;
+}
+
+.delivery-radar-pulse-green {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.45);
+  animation: delivery-pulse 1.6s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+  pointer-events: none;
+}
+
+.customer-drop-pulse {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.35);
+  animation: delivery-pulse 2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+  pointer-events: none;
+}
+
+.delivery-scooter-wrapper {
+  transition: transform 0.3s ease-out;
+}
