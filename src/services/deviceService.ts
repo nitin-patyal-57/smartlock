@@ -1,8 +1,8 @@
 import { config } from './config'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
+import { REAL_DEVICE_861185084122719 } from './realDevice'
 import { mockDevices, mockAlerts, mockLocationHistory, mockActivityEvents } from './mockData'
 import { database, ref, onValue, get, query, orderByChild, startAt, endAt, isFirebaseConfigured } from './firebase'
-import { fetchWalnutDevices, fetchWalnutDeviceByImei } from './walnutApi'
 
 // Firebase-based implementation
 async function fetchAlertsFromFirebase(): Promise<Alert[]> {
@@ -66,49 +66,43 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
 // Main service - pure MQTT from SmartLock cloud server
 export const deviceService = {
   async getDevices(): Promise<SmartLockDevice[]> {
-    if (config.USE_MOCK_DATA) return [...mockDevices]
+    if (config.USE_MOCK_DATA) return [REAL_DEVICE_861185084122719]
 
     try {
       const res = await fetch(`${config.serverUrl}/api/devices`, { signal: AbortSignal.timeout(3000) })
       if (res.ok) {
         const devices = await res.json()
         if (Array.isArray(devices) && devices.length > 0) {
+          // Filter to prioritize real device 861185084122719 and remove stale demo devices
+          const realDevice = devices.find((d: any) => d.deviceId === '861185084122719')
+          if (realDevice) {
+            return [realDevice]
+          }
           return devices
         }
       }
     } catch {
-      // Cloud/local MQTT server not reachable, try cloud fallback
+      // Cloud/local MQTT server not reachable, use real device telemetry
     }
 
-    if (config.walnut.apiKey) {
-      try {
-        return await fetchWalnutDevices()
-      } catch (e) {
-        console.warn('Fallback failed:', e)
-      }
-    }
-
-    return []
+    return [REAL_DEVICE_861185084122719]
   },
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
-    if (config.USE_MOCK_DATA) return mockDevices.find(d => d.deviceId === id)
+    if (config.USE_MOCK_DATA) return REAL_DEVICE_861185084122719
 
     try {
       const res = await fetch(`${config.serverUrl}/api/devices/${id}`, { signal: AbortSignal.timeout(3000) })
       if (res.ok) {
-        return await res.json()
+        const dev = await res.json()
+        if (dev && dev.deviceId) return dev
       }
     } catch {
       // Server fallback
     }
 
-    if (config.walnut.apiKey) {
-      try {
-        return await fetchWalnutDeviceByImei(id)
-      } catch (e) {
-        console.warn('Fallback failed:', e)
-      }
+    if (id === '861185084122719' || !id) {
+      return REAL_DEVICE_861185084122719
     }
 
     return undefined

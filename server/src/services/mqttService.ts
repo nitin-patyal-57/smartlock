@@ -304,7 +304,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
 }
 
 /**
- * Creates default fallback device data structure if device is not yet registered.
+ * Creates default device data structure matching real testing device 861185084122719.
  */
 function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) {
   return {
@@ -316,26 +316,26 @@ function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) 
       imei: deviceId,
       modelId: 'GW1NS-4',
       serialNumber: `SN-${deviceId.slice(-6)}`,
-      appVersion: 'WM_BP_2.0.8',
-      sdkVersion: 'WM_SDK_C_260702',
+      appVersion: 'WMZ_DEV_1.0.2',
+      sdkVersion: 'WM_SDK_C_261008',
       hardwareVersion: 'Z636_V1',
-      bootReason: 'power on',
-      uptime: 5000
+      bootReason: 'power-off charging',
+      uptime: 389
     },
     power: {
-      batteryVoltage: 4.07,
-      batteryPercentage: 94,
-      isCharging: false,
-      isUsbConnected: false,
-      isExternalPower: false,
+      batteryVoltage: 4.22,
+      batteryPercentage: 100,
+      isCharging: true,
+      isUsbConnected: true,
+      isExternalPower: true,
       isLowBattery: false
     },
     cellular: {
-      operator: 'JIO 4G',
+      operator: 'IND airtel',
       networkType: 'LTE',
-      rssi: -73,
-      signalQuality: 4,
-      ip: '10.38.65.70'
+      rssi: 29,
+      signalQuality: 5,
+      ip: '172.18.222.207'
     },
     gps,
     lock: {
@@ -344,17 +344,17 @@ function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) 
       motorStatus: 'idle',
       motorCurrent: 0,
       positionSensor: true,
-      lastLockTime: now,
-      lastUnlockTime: now,
+      lastLockTime: '2026-11-23T10:32:44Z',
+      lastUnlockTime: '',
       unlockMethod: 'remote',
       unlockCount: 1,
       failedUnlockCount: 0
     },
     access: {
-      keypad: { enabled: true, lastUsed: now, count: 0 },
-      nfc: { enabled: true, lastUsed: now, count: 0 },
-      bluetooth: { enabled: true, lastUsed: now, count: 0 },
-      remote: { enabled: true, lastUsed: now, count: 1 }
+      keypad: { enabled: true, lastUsed: '', count: 0 },
+      nfc: { enabled: true, lastUsed: '', count: 0 },
+      bluetooth: { enabled: true, lastUsed: '', count: 0 },
+      remote: { enabled: true, lastUsed: '2026-11-23T10:32:44Z', count: 1 }
     },
     tamper: {
       tamperStatus: false,
@@ -368,9 +368,9 @@ function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) 
     },
     accelerometer: {
       motion: false,
-      x: 0.041,
-      y: -0.02,
-      z: 1.012,
+      x: -0.008,
+      y: 0.008,
+      z: -1.043,
       harshBraking: false,
       harshAcceleration: false,
       sharpTurn: false,
@@ -380,27 +380,27 @@ function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) 
     trip: {
       vehicleStatus: 'stationary',
       tripStatus: false,
-      tripId: '',
+      tripId: 'TRIP-2719',
       distance: 0,
       maximumSpeed: 0,
       overspeedCount: 0
     },
     geofence: {
       status: 'inside',
-      geofenceId: 'GF-DEFAULT',
+      geofenceId: 'GF-01',
       violation: false,
       lastEvent: 'enter'
     },
     sensors: {
-      temperature: 28.5,
-      internalTemperature: 31.2,
-      humidity: 55,
+      temperature: 28.0,
+      internalTemperature: 31.0,
+      humidity: 50,
       hardwareSensorStatus: true
     },
     security: {
       deviceBinding: true,
-      vehicleId: 'VEH-01',
-      customerId: 'CUST-01',
+      vehicleId: '',
+      customerId: '',
       certificateStatus: true,
       secureBoot: true,
       firmwareSignature: true
@@ -411,13 +411,22 @@ function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) 
       freeStorage: 11534336
     },
     diagnostics: {
-      lastDiagnosticTime: now,
+      lastDiagnosticTime: '2026-11-23T10:32:44Z',
       errorCodes: [],
       systemHealth: 'good'
     },
     rtc: {
-      rtcTime: now,
+      rtcTime: '2026-11-23T05:02:44.945Z',
       rtcSynced: true
+    },
+    relays: {
+      '1': 'off',
+      '2': 'off'
+    },
+    leds: {
+      red: 'auto',
+      green: 'auto',
+      blue: 'auto'
     }
   }
 }
@@ -599,32 +608,36 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
 function seedInitialDevices() {
   try {
     const db = getDb()
-    const initialImeis = ['861185084122719', '867509082945058']
+    // Remove stale demo devices
+    try {
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('867509082945058', '861185084200101')").run()
+    } catch {}
+
+    const imei = '861185084122719'
     const now = new Date().toISOString()
-    for (const imei of initialImeis) {
-      const existing = db.prepare('SELECT deviceId FROM devices WHERE deviceId = ?').get(imei)
-      if (!existing) {
-        const defaultGps: ParsedGpsData = {
-          isFixed: true,
-          latitude: 30.704649,
-          longitude: 76.717873,
-          altitude: 315.5,
-          speed: 0,
-          heading: 0,
-          satellites: 14,
-          hdop: 0.9,
-          accuracy: 4.5,
-          lastFix: now,
-          lastLocation: '30.70465, 76.71787'
-        }
-        const dev = createDefaultDevice(imei, defaultGps, now)
-        db.prepare(`
-          INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(imei, dev.deviceName, 'online', now, JSON.stringify(dev), now)
-        console.log(`[MQTT] Pre-seeded device ${imei} into database`)
-      }
+    const defaultGps: ParsedGpsData = {
+      isFixed: true,
+      latitude: 30.657035,
+      longitude: 76.729596,
+      altitude: 301.7,
+      speed: 0,
+      heading: 183,
+      satellites: 29,
+      hdop: 0.6,
+      accuracy: 2.9,
+      lastFix: '2026-11-23T10:32:44Z',
+      lastLocation: '30.65704, 76.72960'
     }
+    const dev = createDefaultDevice(imei, defaultGps, now)
+    db.prepare(`
+      INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(deviceId) DO UPDATE SET
+        data = excluded.data,
+        status = excluded.status,
+        updatedAt = excluded.updatedAt
+    `).run(imei, dev.deviceName, 'online', now, JSON.stringify(dev), now)
+    console.log(`[MQTT] Synced real device ${imei} baseline into database`)
   } catch (err) {
     console.error('[MQTT] Error seeding initial devices:', err)
   }

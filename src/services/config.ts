@@ -17,24 +17,10 @@ export const config = {
   // Walnut Medical API config
   walnut: {
     get apiKey() {
-      return (typeof window !== 'undefined' && localStorage.getItem('walnut_api_key')) || import.meta.env.VITE_WALNUT_API_KEY || '092a914eaed699c47dcf5794348bb14a'
+      return (typeof window !== 'undefined' && localStorage.getItem('walnut_api_key')) || import.meta.env.VITE_WALNUT_API_KEY || ''
     },
     get imei() {
-      const defaultImei = '861185084122719,867509082945058'
-      const envImei = import.meta.env.VITE_WALNUT_IMEI || defaultImei
-      if (typeof window !== 'undefined') {
-        const local = localStorage.getItem('walnut_imei')
-        if (local && local.trim()) {
-          // If local storage has an old saved list without 861185084122719, ensure 861185084122719 is merged
-          if (!local.includes('861185084122719')) {
-            const merged = `861185084122719,${local}`
-            localStorage.setItem('walnut_imei', merged)
-            return merged
-          }
-          return local
-        }
-      }
-      return envImei
+      return '861185084122719'
     },
     apiUrl: import.meta.env.VITE_WALNUT_API_URL || 'https://dev.walnutmedical.ai/api/soundbox/smart_logs',
   },

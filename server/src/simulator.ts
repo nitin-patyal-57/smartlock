@@ -29,10 +29,10 @@ const client = mqtt.connect(AWS_IOT_ENDPOINT, {
 })
 
 let t = 0
-const baseLat = 30.704649
-const baseLon = 76.717873
-let speed = 42.6
-let uptime = 100
+const baseLat = 30.657035
+const baseLon = 76.729596
+let speed = 0
+let uptime = 389
 
 const relays: Record<string, string> = { '1': 'off', '2': 'off' }
 const leds: Record<string, string> = { red: 'auto', green: 'auto', blue: 'auto' }
@@ -46,9 +46,9 @@ client.on('connect', () => {
 
   // Transmit metrics every 2s as specified
   setInterval(() => {
-    const lat = Number((baseLat + 0.005 * Math.sin(t)).toFixed(6))
-    const lon = Number((baseLon + 0.007 * Math.cos(t)).toFixed(6))
-    const heading = Math.round(((Math.atan2(-0.007 * Math.sin(t), 0.005 * Math.cos(t)) * 180 / Math.PI) + 360) % 360)
+    const lat = Number((baseLat + (speed > 0 ? 0.002 * Math.sin(t) : 0)).toFixed(6))
+    const lon = Number((baseLon + (speed > 0 ? 0.003 * Math.cos(t) : 0)).toFixed(6))
+    const heading = speed > 0 ? Math.round(((Math.atan2(-0.003 * Math.sin(t), 0.002 * Math.cos(t)) * 180 / Math.PI) + 360) % 360) : 183
     uptime += 2
 
     const now = new Date()
@@ -59,58 +59,58 @@ client.on('connect', () => {
         imei: IMEI,
         model_id: 'GW1NS-4',
         serial_no: `SN-${IMEI.slice(-6)}`,
-        app_v: 'WM_BP_2.0.8',
-        sdk_v: 'WM_SDK_C_260702',
+        app_v: 'WMZ_DEV_1.0.2',
+        sdk_v: 'WM_SDK_C_261008',
         hw_v: 'Z636_V1',
-        boot_reason: 'power on',
+        boot_reason: 'power-off charging',
         uptime_sec: uptime
       },
       power: {
-        bat_v: 4075,
-        bat_lvl: 94,
-        charging: 'N',
-        usb: 'N',
-        ext_power: 'N',
+        bat_v: 4222,
+        bat_lvl: 100,
+        charging: 'Y',
+        usb: 'Y',
+        ext_power: 'Y',
         ext_power_v: '',
         low_battery: false
       },
       cellular: {
-        imsi: '405867153266129',
-        operator: 'JIO 4G',
+        imsi: '404022437552332',
+        operator: 'IND airtel',
         net_t: 'LTE',
-        mcc: '405',
-        mnc: '86',
-        cell_id: '131860',
-        tac: '174',
-        rssi: -73,
-        rsrp: -95,
-        rsrq: -11,
-        sinr: 12,
-        signal: 'GOOD',
-        band: '40',
-        ip4: '10.38.65.70',
-        ip6: ''
+        mcc: '404',
+        mnc: '02',
+        cell_id: '128026133',
+        tac: '7911',
+        rssi: 29,
+        rsrp: 52,
+        rsrq: 13,
+        sinr: -4,
+        signal: 'EXCELLENT',
+        band: '3',
+        ip4: '172.18.222.207',
+        ip6: '254.128.0.0.0.0.0.0.0.0.0.0.20.235.208.251'
       },
       gps: {
         status: 'FIXED',
         latitude: lat,
         longitude: lon,
-        altitude_m: 315.5,
+        altitude_m: 301.7,
         speed_kmph: speed,
         heading_deg: heading,
-        satellites: 14,
-        hdop: 0.9,
-        accuracy_m: 4.5,
+        satellites: 29,
+        hdop: 0.6,
+        accuracy_m: 2.9,
         fix_type: '3D',
         last_fix: nowIso,
         location: ''
       },
       accelerometer: {
         status: 'OK',
-        motion: true,
-        x_g: 0.041,
-        y_g: -0.02,
-        z_g: 1.012,
+        motion: speed > 0,
+        x_g: -0.008,
+        y_g: 0.008,
+        z_g: -1.043,
         harsh_braking_count: 0,
         harsh_acceleration_count: 0,
         sharp_turn_count: 0,

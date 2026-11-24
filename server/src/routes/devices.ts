@@ -16,7 +16,7 @@ router.post('/devices/:id/telemetry', (req: Request, res: Response) => {
     // Upsert device latest state
     const deviceName = data.deviceName || data.device?.modelId || deviceId
     const status = 'online'
-    
+
     db.prepare(`
       INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -173,14 +173,17 @@ router.get('/devices', (req: Request, res: Response) => {
   try {
     const db = getDb()
     const rows = db.prepare('SELECT * FROM devices ORDER BY updatedAt DESC').all()
-    
-    const devices = rows.map((row: any) => ({
-      ...JSON.parse(row.data),
-      status: row.status,
-      lastSeen: row.lastSeen,
-      deviceId: row.deviceId,
-      deviceName: row.deviceName,
-    }))
+
+    // Filter out old demo devices so only the real testing hardware is displayed
+    const devices = rows
+      .filter((row: any) => row.deviceId !== '867509082945058' && row.deviceId !== '861185084200101')
+      .map((row: any) => ({
+        ...JSON.parse(row.data),
+        status: row.status,
+        lastSeen: row.lastSeen,
+        deviceId: row.deviceId,
+        deviceName: row.deviceName,
+      }))
 
     res.json(devices)
   } catch (error) {
@@ -194,7 +197,7 @@ router.get('/devices/:id', (req: Request, res: Response) => {
   try {
     const db = getDb()
     const row = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(req.params.id) as any
-    
+
     if (!row) {
       return res.status(404).json({ error: 'Device not found' })
     }
@@ -219,10 +222,10 @@ router.get('/devices/:id/history', (req: Request, res: Response) => {
   try {
     const db = getDb()
     const { from, to } = req.query
-    
+
     let query = 'SELECT * FROM device_history WHERE deviceId = ?'
     const params: any[] = [req.params.id]
-    
+
     if (from) {
       query += ' AND timestamp >= ?'
       params.push(from)
@@ -231,11 +234,11 @@ router.get('/devices/:id/history', (req: Request, res: Response) => {
       query += ' AND timestamp <= ?'
       params.push(to)
     }
-    
+
     query += ' ORDER BY timestamp ASC'
-    
+
     const rows = db.prepare(query).all(...params)
-    
+
     const history = rows.map((row: any) => ({
       id: `hist-${row.id}`,
       deviceId: row.deviceId,
@@ -272,8 +275,8 @@ router.post('/devices/:id/offline', (req: Request, res: Response) => {
 
 // Helper: Generate alerts based on device data
 function generateAlerts(deviceId: string, data: any) {
-  const alerts: Array<{id: string, deviceId: string, type: string, message: string, severity: string}> = []
-  
+  const alerts: Array<{ id: string, deviceId: string, type: string, message: string, severity: string }> = []
+
   // Low battery
   if (data.power?.batteryPercentage !== undefined && data.power.batteryPercentage < 20) {
     alerts.push({
@@ -284,7 +287,7 @@ function generateAlerts(deviceId: string, data: any) {
       severity: data.power.batteryPercentage < 10 ? 'critical' : 'warning',
     })
   }
-  
+
   // Tamper detection
   if (data.tamper?.tamperStatus) {
     alerts.push({
@@ -340,7 +343,7 @@ function generateAlerts(deviceId: string, data: any) {
       severity: 'warning',
     })
   }
-  
+
   // Geofence violation
   if (data.geofence?.violation) {
     alerts.push({
@@ -351,7 +354,7 @@ function generateAlerts(deviceId: string, data: any) {
       severity: 'warning',
     })
   }
-  
+
   // Overspeed
   if (data.trip?.overspeedCount > 0) {
     alerts.push({
@@ -362,7 +365,7 @@ function generateAlerts(deviceId: string, data: any) {
       severity: 'warning',
     })
   }
-  
+
   return alerts
 }
 
