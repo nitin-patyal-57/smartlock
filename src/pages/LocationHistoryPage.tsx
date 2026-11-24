@@ -10,6 +10,8 @@ import RouteTracker from '@/components/route/RouteTracker'
 import RouteProgressBar from '@/components/route/RouteProgressBar'
 import { Search, MapPin, ExternalLink, Route } from 'lucide-react'
 import type { LocationHistoryEntry } from '@/types/smartlock'
+import { MAP_LAYERS, type MapLayerType } from '@/components/map/mapLayers'
+import { MapLayerSwitcher } from '@/components/map/MapLayerSwitcher'
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371
@@ -55,6 +57,7 @@ export default function LocationHistoryPage() {
   const [to, setTo] = useState('')
   const [searched, setSearched] = useState(false)
   const [showRoute, setShowRoute] = useState(false)
+  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('google-streets')
   const { isDark } = useTheme()
 
   const { history: locations, loading: locationsLoading } = useLocationHistory(
@@ -208,19 +211,21 @@ export default function LocationHistoryPage() {
           </div>
 
           {showRoute && (
-            <Card padding="none" className="overflow-hidden">
+            <Card padding="none" className="relative overflow-hidden">
+              <div className="absolute top-3 right-3 z-[1000]">
+                <MapLayerSwitcher currentLayer={currentLayer} onLayerChange={setCurrentLayer} />
+              </div>
               <MapContainer
                 center={routeCenter as [number, number]}
                 zoom={6}
                 style={{ height: '400px', width: '100%' }}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url={
-                    isDark
-                      ? 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
-                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-                  }
+                  key={currentLayer}
+                  url={MAP_LAYERS[currentLayer].url}
+                  subdomains={MAP_LAYERS[currentLayer].subdomains || []}
+                  maxZoom={MAP_LAYERS[currentLayer].maxZoom}
+                  attribution={MAP_LAYERS[currentLayer].attribution}
                 />
                 {locations.length > 0 && (
                   <>

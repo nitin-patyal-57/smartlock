@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDevice } from '@/hooks/useDevices'
 import { deviceService } from '@/services/deviceService'
+import { DeviceLiveMapCard } from '@/components/map/DeviceLiveMapCard'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import BatteryIndicator from '@/components/ui/BatteryIndicator'
@@ -415,25 +416,8 @@ export default function DeviceDetailPage() {
         </SectionCard>
 
         {/* Current Location */}
-        <SectionCard title="Current Location" icon={<MapPin className="h-4 w-4 text-rose-500" />}>
-          {d.gps.latitude !== 0 && d.gps.longitude !== 0 ? (
-            <div className="h-40 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-              <iframe
-                title="Device Location"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                loading="lazy"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${d.gps.longitude - 0.01},${d.gps.latitude - 0.005},${d.gps.longitude + 0.01},${d.gps.latitude + 0.005}&layer=mapnik&marker=${d.gps.latitude},${d.gps.longitude}`}
-              />
-            </div>
-          ) : (
-            <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50 p-4 text-center">
-              <MapPin className="h-8 w-8 text-slate-400 mb-2" />
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No GPS Coordinates</p>
-              <p className="text-xs text-slate-400">Waiting for device satellite acquisition</p>
-            </div>
-          )}
+        <SectionCard title="Live Google Map Tracking" icon={<MapPin className="h-4 w-4 text-rose-500" />}>
+          <DeviceLiveMapCard device={d as any} />
           <InfoRow label="Latitude" value={d.gps.latitude ? d.gps.latitude.toFixed(6) : '0.000000'} />
           <InfoRow label="Longitude" value={d.gps.longitude ? d.gps.longitude.toFixed(6) : '0.000000'} />
           <InfoRow label="Altitude" value={`${d.gps.altitude}m`} />
