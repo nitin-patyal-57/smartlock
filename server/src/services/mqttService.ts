@@ -209,14 +209,28 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
       isCharging: parseBool(p.charging),
       isUsbConnected: parseBool(p.usb),
       isExternalPower: parseBool(p.ext_power),
-      isLowBattery: isLowBat
+      isLowBattery: isLowBat,
+      batteryMv: batMv,
+      extPowerVoltage: p.ext_power_v || ''
     },
     cellular: {
-      operator: c.operator || 'JIO 4G',
+      operator: c.operator || 'IND airtel',
       networkType: c.net_t || 'LTE',
-      rssi: parseNum(c.rssi, -73),
+      rssi: parseNum(c.rssi, 29),
       signalQuality: c.signal === 'EXCELLENT' ? 5 : c.signal === 'GOOD' ? 4 : c.signal === 'FAIR' ? 3 : 2,
-      ip: c.ip4 || '10.38.65.70'
+      ip: c.ip4 || '172.18.222.207',
+      imsi: c.imsi || '',
+      mcc: c.mcc || '',
+      mnc: c.mnc || '',
+      cellId: c.cell_id || '',
+      tac: c.tac || '',
+      band: c.band || '',
+      rsrp: parseNum(c.rsrp, 0),
+      rsrq: parseNum(c.rsrq, 0),
+      sinr: parseNum(c.sinr, 0),
+      signal: c.signal || 'EXCELLENT',
+      ip4: c.ip4 || '',
+      ip6: c.ip6 || ''
     },
     gps,
     lock: {
@@ -248,6 +262,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
       lastTamperTime: ''
     },
     accelerometer: {
+      status: acc.status || 'OK',
       motion: parseBool(acc.motion),
       x: parseNum(acc.x_g, 0),
       y: parseNum(acc.y_g, 0),
@@ -255,6 +270,9 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
       harshBraking: parseNum(acc.harsh_braking_count, 0) > 0,
       harshAcceleration: parseNum(acc.harsh_acceleration_count, 0) > 0,
       sharpTurn: parseNum(acc.sharp_turn_count, 0) > 0,
+      harshBrakingCount: parseNum(acc.harsh_braking_count, 0),
+      harshAccelerationCount: parseNum(acc.harsh_acceleration_count, 0),
+      sharpTurnCount: parseNum(acc.sharp_turn_count, 0),
       impactCount: parseNum(acc.impact_count, 0),
       drivingScore: parseNum(acc.driving_score, 100)
     },

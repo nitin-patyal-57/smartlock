@@ -16,6 +16,8 @@ export interface PowerInfo {
   isUsbConnected: boolean;
   isExternalPower: boolean;
   isLowBattery: boolean;
+  batteryMv?: number;
+  extPowerVoltage?: string;
 }
 
 export interface CellularInfo {
@@ -24,6 +26,18 @@ export interface CellularInfo {
   rssi: number;
   signalQuality: number;
   ip: string;
+  imsi?: string;
+  mcc?: string;
+  mnc?: string;
+  cellId?: string;
+  tac?: string;
+  band?: string;
+  rsrp?: number;
+  rsrq?: number;
+  sinr?: number;
+  signal?: string;
+  ip4?: string;
+  ip6?: string;
 }
 
 export interface GpsInfo {
@@ -39,6 +53,7 @@ export interface GpsInfo {
   lastFix: string;
   lastLocation: string;
   fixType?: string;
+  status?: string;
 }
 
 export interface LockInfo {
@@ -88,6 +103,10 @@ export interface AccelerometerInfo {
   sharpTurn: boolean;
   impactCount: number;
   drivingScore: number;
+  status?: string;
+  harshBrakingCount?: number;
+  harshAccelerationCount?: number;
+  sharpTurnCount?: number;
 }
 
 export interface TripInfo {

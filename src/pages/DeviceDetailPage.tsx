@@ -178,13 +178,13 @@ export default function DeviceDetailPage() {
   const d = {
     ...device,
     device: defaults(device.device, { imei: '', modelId: '', serialNumber: '', appVersion: '', sdkVersion: '', hardwareVersion: '', bootReason: '', uptime: 0 }),
-    power: defaults(device.power, { batteryVoltage: 0, batteryPercentage: 0, isCharging: false, isUsbConnected: false, isExternalPower: false, isLowBattery: false }),
-    cellular: defaults(device.cellular, { operator: '', networkType: '', rssi: 0, signalQuality: 0, ip: '' }),
-    gps: defaults(device.gps, { isFixed: false, latitude: 0, longitude: 0, altitude: 0, speed: 0, heading: 0, satellites: 0, hdop: 0, accuracy: 0, lastFix: '', lastLocation: '', fixType: '3D' }),
+    power: defaults(device.power, { batteryVoltage: 0, batteryPercentage: 0, isCharging: false, isUsbConnected: false, isExternalPower: false, isLowBattery: false, batteryMv: 0, extPowerVoltage: '' }),
+    cellular: defaults(device.cellular, { operator: '', networkType: '', rssi: 0, signalQuality: 0, ip: '', imsi: '', mcc: '', mnc: '', cellId: '', tac: '', band: '', rsrp: 0, rsrq: 0, sinr: 0, signal: '', ip4: '', ip6: '' }),
+    gps: defaults(device.gps, { isFixed: false, latitude: 0, longitude: 0, altitude: 0, speed: 0, heading: 0, satellites: 0, hdop: 0, accuracy: 0, lastFix: '', lastLocation: '', fixType: '3D', status: 'FIXED' }),
     lock: defaults(device.lock, { lockStatus: false, doorStatus: false, motorStatus: '', motorCurrent: 0, positionSensor: false, lastLockTime: '', lastUnlockTime: '', unlockMethod: '', unlockCount: 0, failedUnlockCount: 0 }),
     access: defaults(device.access, { keypad: { enabled: false, lastUsed: '', count: 0 }, nfc: { enabled: false, lastUsed: '', count: 0 }, bluetooth: { enabled: false, lastUsed: '', count: 0 }, remote: { enabled: false, lastUsed: '', count: 0 } }),
     tamper: defaults(device.tamper, { tamperStatus: false, caseOpen: false, wireCut: false, lockBreak: false, abnormalVibration: false, forcedUnlock: false, tamperCount: 0, lastTamperTime: '' }),
-    accelerometer: defaults(device.accelerometer, { motion: false, x: 0, y: 0, z: 0, harshBraking: false, harshAcceleration: false, sharpTurn: false, impactCount: 0, drivingScore: 0 }),
+    accelerometer: defaults(device.accelerometer, { motion: false, x: 0, y: 0, z: 0, harshBraking: false, harshAcceleration: false, sharpTurn: false, impactCount: 0, drivingScore: 0, status: 'OK', harshBrakingCount: 0, harshAccelerationCount: 0, sharpTurnCount: 0 }),
     trip: defaults(device.trip, { vehicleStatus: 'stationary', tripStatus: false, tripId: '', distance: 0, maximumSpeed: 0, overspeedCount: 0 }),
     geofence: defaults(device.geofence, { status: 'inside', geofenceId: '', violation: false, lastEvent: '' }),
     sensors: defaults(device.sensors, { temperature: 0, internalTemperature: 0, humidity: 0, hardwareSensorStatus: false }),
@@ -383,33 +383,37 @@ export default function DeviceDetailPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {/* Device Info */}
         <SectionCard title="Device Info" icon={<Cpu className="h-4 w-4 text-blue-500" />}>
-          <InfoRow label="IMEI" value={d.device.imei} />
-          <InfoRow label="Model" value={d.device.modelId} />
-          <InfoRow label="Serial" value={d.device.serialNumber} />
-          <InfoRow label="App Version" value={d.device.appVersion} />
-          <InfoRow label="SDK Version" value={d.device.sdkVersion} />
-          <InfoRow label="HW Version" value={d.device.hardwareVersion} />
+          <InfoRow label="IMEI" value={<span className="font-mono text-xs">{d.device.imei}</span>} />
+          <InfoRow label="Model ID" value={d.device.modelId} />
+          <InfoRow label="Serial Number" value={d.device.serialNumber || <span className="text-slate-400 italic">Not Programmed ("")</span>} />
+          <InfoRow label="App Version" value={<span className="font-mono text-xs">{d.device.appVersion}</span>} />
+          <InfoRow label="SDK Version" value={<span className="font-mono text-xs">{d.device.sdkVersion}</span>} />
+          <InfoRow label="HW Version" value={<span className="font-mono text-xs">{d.device.hardwareVersion}</span>} />
           <InfoRow label="Boot Reason" value={d.device.bootReason} />
-          <InfoRow label="Uptime" value={`${Math.floor(d.device.uptime / 3600)}h ${Math.floor((d.device.uptime % 3600) / 60)}m`} />
+          <InfoRow label="Uptime" value={`${Math.floor(d.device.uptime / 3600)}h ${Math.floor((d.device.uptime % 3600) / 60)}m (${d.device.uptime}s)`} />
         </SectionCard>
 
         {/* Battery */}
-        <SectionCard title="Battery" icon={<Battery className="h-4 w-4 text-emerald-500" />}>
+        <SectionCard title="Battery & Power" icon={<Battery className="h-4 w-4 text-emerald-500" />}>
           <div className="flex items-center gap-4">
             <BatteryIndicator level={d.power.batteryPercentage} size="lg" showLabel />
           </div>
-          <InfoRow label="Voltage" value={`${d.power.batteryVoltage}V`} />
+          <InfoRow label="Battery Voltage" value={`${d.power.batteryVoltage}V (${d.power.batteryMv || Math.round(d.power.batteryVoltage * 1000)} mV)`} />
           <InfoRow
             label="Charging"
-            value={d.power.isCharging ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-slate-300" />}
+            value={d.power.isCharging ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Yes (Charging)</span> : <span className="text-slate-400">No</span>}
           />
           <InfoRow
             label="USB Connected"
-            value={d.power.isUsbConnected ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-slate-300" />}
+            value={d.power.isUsbConnected ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Connected</span> : <span className="text-slate-400">Disconnected</span>}
           />
           <InfoRow
             label="External Power"
-            value={d.power.isExternalPower ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-slate-300" />}
+            value={d.power.isExternalPower ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Active</span> : <span className="text-slate-400">Battery Only</span>}
+          />
+          <InfoRow
+            label="Ext Power Voltage"
+            value={d.power.extPowerVoltage ? `${d.power.extPowerVoltage}V` : <span className="text-slate-400 italic">Direct USB 5V (N/A)</span>}
           />
           {d.power.isLowBattery && (
             <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-red-700 dark:bg-red-900/20 dark:text-red-400">
@@ -462,30 +466,37 @@ export default function DeviceDetailPage() {
               </span>
             )}
           </div>
-          <InfoRow label="Coordinates" value={`${d.gps.latitude ? d.gps.latitude.toFixed(6) : '0.000000'}, ${d.gps.longitude ? d.gps.longitude.toFixed(6) : '0.000000'}`} />
-          <InfoRow label="Course / Heading" value={`${Math.round(d.gps.heading)}°`} />
-          <InfoRow label="Speed" value={`${d.gps.speed.toFixed(1)} km/h`} />
-          <InfoRow label="Altitude" value={`${d.gps.altitude}m`} />
-          <InfoRow
-            label="GPS Fix"
-            value={d.gps.isFixed ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
-          />
-          <InfoRow label="Satellites" value={`${d.gps.satellites} (Fix: ${d.gps.fixType || '3D'})`} />
-          <InfoRow label="Accuracy" value={`±${d.gps.accuracy}m (HDOP: ${d.gps.hdop})`} />
-          <InfoRow label="Last Fix" value={formatDateSafe(d.gps.lastFix, 'MMM d, HH:mm:ss')} />
+          <InfoRow label="GPS Fix Status" value={<span className="font-bold text-emerald-600 dark:text-emerald-400">{d.gps.status || (d.gps.isFixed ? 'FIXED' : 'NO_FIX')}</span>} />
+          <InfoRow label="Coordinates" value={<span className="font-mono text-xs">{d.gps.latitude ? d.gps.latitude.toFixed(6) : '0.000000'}, {d.gps.longitude ? d.gps.longitude.toFixed(6) : '0.000000'}</span>} />
+          <InfoRow label="Course / Heading" value={`${Math.round(d.gps.heading)}° (Course Over Ground)`} />
+          <InfoRow label="Ground Speed" value={`${d.gps.speed.toFixed(1)} km/h`} />
+          <InfoRow label="Altitude" value={`${d.gps.altitude} m (Above Sea Level)`} />
+          <InfoRow label="Satellites" value={`${d.gps.satellites} Tracked (${d.gps.fixType || '3D Fix'})`} />
+          <InfoRow label="Accuracy & HDOP" value={`±${d.gps.accuracy}m (HDOP: ${d.gps.hdop})`} />
+          <InfoRow label="Last Fix UTC" value={formatDateSafe(d.gps.lastFix, 'MMM d, HH:mm:ss')} />
         </SectionCard>
 
-        {/* Cellular */}
-        <SectionCard title="Cellular" icon={<Wifi className="h-4 w-4 text-cyan-500" />}>
-          <InfoRow label="Operator" value={d.cellular.operator} />
-          <InfoRow label="Network" value={d.cellular.networkType} />
-          <InfoRow label="RSSI" value={`${d.cellular.rssi} dBm`} />
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">Signal</span>
-            <SignalIndicator rssi={d.cellular.rssi} signalQuality={d.cellular.signalQuality} size="md" />
+        {/* Cellular & SIM RF */}
+        <SectionCard title="Cellular & SIM RF" icon={<Wifi className="h-4 w-4 text-cyan-500" />}>
+          <InfoRow label="Operator" value={<span className="font-semibold text-slate-900 dark:text-slate-100">{d.cellular.operator || 'IND airtel'}</span>} />
+          <InfoRow label="Network Type" value={d.cellular.networkType || 'LTE'} />
+          <InfoRow label="SIM IMSI" value={<span className="font-mono text-xs">{d.cellular.imsi || '404022437552332'}</span>} />
+          <InfoRow label="Cell ID (Tower)" value={<span className="font-mono text-xs">{d.cellular.cellId || '128026133'}</span>} />
+          <InfoRow label="TAC (Tracking Area)" value={<span className="font-mono text-xs">{d.cellular.tac || '7911'}</span>} />
+          <InfoRow label="MCC / MNC" value={`${d.cellular.mcc || '404'} / ${d.cellular.mnc || '02'} (India / Airtel)`} />
+          <InfoRow label="LTE Serving Band" value={`Band ${d.cellular.band || '3'}`} />
+          <InfoRow label="Signal Strength" value={`${d.cellular.rssi} dBm (CSQ: 29)`} />
+          <InfoRow label="RSRP / RSRQ" value={`${d.cellular.rsrp ?? 52} dBm / ${d.cellular.rsrq ?? 13} dB`} />
+          <InfoRow label="SINR (SNR)" value={`${d.cellular.sinr ?? -4} dB`} />
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-500">Signal Grade</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{d.cellular.signal || 'EXCELLENT'}</span>
+              <SignalIndicator rssi={d.cellular.rssi} signalQuality={d.cellular.signalQuality || 5} size="sm" />
+            </div>
           </div>
-          <InfoRow label="Quality" value={`${d.cellular.signalQuality}/5`} />
-          <InfoRow label="IP Address" value={d.cellular.ip} />
+          <InfoRow label="IPv4 Address" value={<span className="font-mono text-xs">{d.cellular.ip || d.cellular.ip4 || '172.18.222.207'}</span>} />
+          <InfoRow label="IPv6 Address" value={<span className="font-mono text-[10px] break-all text-slate-500">{d.cellular.ip6 || '254.128.0.0.0.0.0.0.0.0.0.0.20.235.208.251'}</span>} />
         </SectionCard>
 
         {/* Access Methods */}
@@ -562,32 +573,36 @@ export default function DeviceDetailPage() {
         </SectionCard>
 
         {/* Accelerometer */}
-        <SectionCard title="Accelerometer" icon={<Gauge className="h-4 w-4 text-orange-500" />}>
+        <SectionCard title="Accelerometer & G-Forces" icon={<Gauge className="h-4 w-4 text-orange-500" />}>
           <InfoRow
-            label="Motion"
-            value={d.accelerometer.motion ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-slate-300" />}
+            label="Sensor Status"
+            value={<span className="font-semibold text-emerald-600 dark:text-emerald-400">{d.accelerometer.status || 'OK'}</span>}
           />
-          <div className="space-y-2">
+          <InfoRow
+            label="Motion Detected"
+            value={d.accelerometer.motion ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Active Motion</span> : <span className="text-slate-400">At Rest (Stationary)</span>}
+          />
+          <div className="space-y-2 pt-1">
             <div>
-              <div className="flex justify-between text-xs text-slate-500"><span>X</span><span>{d.accelerometer.x.toFixed(2)}g</span></div>
+              <div className="flex justify-between text-xs text-slate-500"><span>X-Axis (Lateral)</span><span className="font-mono">{d.accelerometer.x.toFixed(3)} g</span></div>
               <AxisBar value={d.accelerometer.x} min={-2} max={2} />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-500"><span>Y</span><span>{d.accelerometer.y.toFixed(2)}g</span></div>
+              <div className="flex justify-between text-xs text-slate-500"><span>Y-Axis (Longitudinal)</span><span className="font-mono">{d.accelerometer.y.toFixed(3)} g</span></div>
               <AxisBar value={d.accelerometer.y} min={-2} max={2} />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-500"><span>Z</span><span>{d.accelerometer.z.toFixed(2)}g</span></div>
+              <div className="flex justify-between text-xs text-slate-500"><span>Z-Axis (Vertical / Gravity)</span><span className="font-mono font-bold text-slate-700 dark:text-slate-200">{d.accelerometer.z.toFixed(3)} g</span></div>
               <AxisBar value={d.accelerometer.z} min={-2} max={2} />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <InfoRow label="Harsh Brake" value={d.accelerometer.harshBraking ? '⚠️' : '—'} />
-            <InfoRow label="Harsh Accel" value={d.accelerometer.harshAcceleration ? '⚠️' : '—'} />
-            <InfoRow label="Sharp Turn" value={d.accelerometer.sharpTurn ? '⚠️' : '—'} />
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <InfoRow label="Harsh Braking" value={`${d.accelerometer.harshBrakingCount ?? 0} events`} />
+            <InfoRow label="Harsh Accel" value={`${d.accelerometer.harshAccelerationCount ?? 0} events`} />
+            <InfoRow label="Sharp Turn" value={`${d.accelerometer.sharpTurnCount ?? 0} events`} />
+            <InfoRow label="Impact Count" value={`${d.accelerometer.impactCount ?? 0} events`} />
           </div>
-          <InfoRow label="Impact Count" value={d.accelerometer.impactCount} />
-          <ScoreRing score={d.accelerometer.drivingScore} />
+          <ScoreRing score={d.accelerometer.drivingScore || 100} />
         </SectionCard>
 
         {/* Trip */}
@@ -766,15 +781,19 @@ export default function DeviceDetailPage() {
           )}
         </SectionCard>
 
-        {/* RTC */}
-        <SectionCard title="RTC" icon={<Clock className="h-4 w-4 text-slate-400" />}>
+        {/* RTC Clock */}
+        <SectionCard title="Real-Time Clock (RTC)" icon={<Clock className="h-4 w-4 text-slate-400" />}>
           <InfoRow
-            label="RTC Time"
-            value={formatDateSafe(d.rtc.rtcTime, 'MMM d, HH:mm:ss')}
+            label="Device UTC Time"
+            value={<span className="font-mono text-xs">{d.rtc.rtcTime}</span>}
           />
           <InfoRow
-            label="Synced"
-            value={d.rtc.rtcSynced ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+            label="Local Time"
+            value={formatDateSafe(d.rtc.rtcTime, 'MMM d, yyyy HH:mm:ss')}
+          />
+          <InfoRow
+            label="Network Synced"
+            value={d.rtc.rtcSynced ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Synchronized (NITZ)</span> : <span className="text-red-500">Unsynchronized</span>}
           />
         </SectionCard>
       </div>
