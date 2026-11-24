@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useDevice } from '@/hooks/useDevices'
 import { deviceService } from '@/services/deviceService'
 import { DeviceLiveMapCard } from '@/components/map/DeviceLiveMapCard'
+import { isDeviceMoving } from '@/components/map/mapLayers'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import BatteryIndicator from '@/components/ui/BatteryIndicator'
@@ -179,7 +180,7 @@ export default function DeviceDetailPage() {
     device: defaults(device.device, { imei: '', modelId: '', serialNumber: '', appVersion: '', sdkVersion: '', hardwareVersion: '', bootReason: '', uptime: 0 }),
     power: defaults(device.power, { batteryVoltage: 0, batteryPercentage: 0, isCharging: false, isUsbConnected: false, isExternalPower: false, isLowBattery: false }),
     cellular: defaults(device.cellular, { operator: '', networkType: '', rssi: 0, signalQuality: 0, ip: '' }),
-    gps: defaults(device.gps, { isFixed: false, latitude: 0, longitude: 0, altitude: 0, speed: 0, heading: 0, satellites: 0, hdop: 0, accuracy: 0, lastFix: '', lastLocation: '' }),
+    gps: defaults(device.gps, { isFixed: false, latitude: 0, longitude: 0, altitude: 0, speed: 0, heading: 0, satellites: 0, hdop: 0, accuracy: 0, lastFix: '', lastLocation: '', fixType: '3D' }),
     lock: defaults(device.lock, { lockStatus: false, doorStatus: false, motorStatus: '', motorCurrent: 0, positionSensor: false, lastLockTime: '', lastUnlockTime: '', unlockMethod: '', unlockCount: 0, failedUnlockCount: 0 }),
     access: defaults(device.access, { keypad: { enabled: false, lastUsed: '', count: 0 }, nfc: { enabled: false, lastUsed: '', count: 0 }, bluetooth: { enabled: false, lastUsed: '', count: 0 }, remote: { enabled: false, lastUsed: '', count: 0 } }),
     tamper: defaults(device.tamper, { tamperStatus: false, caseOpen: false, wireCut: false, lockBreak: false, abnormalVibration: false, forcedUnlock: false, tamperCount: 0, lastTamperTime: '' }),
@@ -348,6 +349,37 @@ export default function DeviceDetailPage() {
         </div>
       </Card>
 
+      {/* Real-Time Google Maps Movement Tracking & Road Plotting */}
+      <Card padding="md" className="border-slate-200 shadow-md dark:border-slate-800">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500 to-pink-600 text-white shadow-md">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <span>Real-Time Google Maps Tracking</span>
+                {isDeviceMoving(d as any) ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    ● LIVE MOVING ({d.gps.speed.toFixed(1)} km/h)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    ○ STATIONARY / PARKED (0.0 km/h)
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Live MQTT telemetry stream with continuous road plotting and movement detection
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <DeviceLiveMapCard device={d as any} height="h-[440px]" />
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {/* Device Info */}
         <SectionCard title="Device Info" icon={<Cpu className="h-4 w-4 text-blue-500" />}>
@@ -415,24 +447,31 @@ export default function DeviceDetailPage() {
           <InfoRow label="Failed Unlocks" value={<span className={d.lock.failedUnlockCount > 0 ? 'text-red-500' : ''}>{d.lock.failedUnlockCount}</span>} />
         </SectionCard>
 
-        {/* Current Location */}
-        <SectionCard title="Live Google Map Tracking" icon={<MapPin className="h-4 w-4 text-rose-500" />}>
-          <DeviceLiveMapCard device={d as any} />
-          <InfoRow label="Latitude" value={d.gps.latitude ? d.gps.latitude.toFixed(6) : '0.000000'} />
-          <InfoRow label="Longitude" value={d.gps.longitude ? d.gps.longitude.toFixed(6) : '0.000000'} />
+        {/* GPS & Motion Telemetry */}
+        <SectionCard title="GPS & Motion Telemetry" icon={<Navigation className="h-4 w-4 text-violet-500" />}>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-500 font-medium">Device Motion State:</span>
+            {isDeviceMoving(d as any) ? (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                ● MOVING ({d.gps.speed.toFixed(1)} km/h)
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                ○ STATIONARY (0.0 km/h)
+              </span>
+            )}
+          </div>
+          <InfoRow label="Coordinates" value={`${d.gps.latitude ? d.gps.latitude.toFixed(6) : '0.000000'}, ${d.gps.longitude ? d.gps.longitude.toFixed(6) : '0.000000'}`} />
+          <InfoRow label="Course / Heading" value={`${Math.round(d.gps.heading)}°`} />
+          <InfoRow label="Speed" value={`${d.gps.speed.toFixed(1)} km/h`} />
           <InfoRow label="Altitude" value={`${d.gps.altitude}m`} />
-          <InfoRow label="Speed" value={`${d.gps.speed} km/h`} />
-        </SectionCard>
-
-        {/* GPS */}
-        <SectionCard title="GPS" icon={<Navigation className="h-4 w-4 text-violet-500" />}>
           <InfoRow
-            label="Fixed"
+            label="GPS Fix"
             value={d.gps.isFixed ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
           />
-          <InfoRow label="Satellites" value={d.gps.satellites} />
-          <InfoRow label="HDOP" value={d.gps.hdop} />
-          <InfoRow label="Accuracy" value={`${d.gps.accuracy}m`} />
+          <InfoRow label="Satellites" value={`${d.gps.satellites} (Fix: ${d.gps.fixType || '3D'})`} />
+          <InfoRow label="Accuracy" value={`±${d.gps.accuracy}m (HDOP: ${d.gps.hdop})`} />
           <InfoRow label="Last Fix" value={formatDateSafe(d.gps.lastFix, 'MMM d, HH:mm:ss')} />
         </SectionCard>
 

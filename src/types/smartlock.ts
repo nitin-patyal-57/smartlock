@@ -38,6 +38,7 @@ export interface GpsInfo {
   accuracy: number;
   lastFix: string;
   lastLocation: string;
+  fixType?: string;
 }
 
 export interface LockInfo {
