@@ -592,6 +592,12 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
       try {
         const json = JSON.parse(rawPayload)
 
+        // Drop known GPS trackers
+        if (GPS_TRACKER_IMEIS.has(imei)) {
+          console.log(`[MQTT] Skipping ${imei}: Known GPS Tracker excluded from SmartLock dashboard`)
+          return
+        }
+
         // Only receive the device if in the JSON data there is a lock option (smartlock data)
         const isSmartLock = hasLockOption(json, topic)
         if (!isSmartLock) {
@@ -707,14 +713,21 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
 /**
  * Seed initial device entries if not present
  */
+export const GPS_TRACKER_IMEIS = new Set([
+  '861185084122693', // First card: WEGW GPS Tracker
+  '861185084122719', // Third card: WEGW GPS Tracker
+  '861185084200101',
+  '861185084188827',
+])
+
 function seedInitialDevices() {
   try {
     const db = getDb()
-    // Remove older/stale devices
+    // Remove older/stale devices and plain GPS trackers
     try {
-      db.prepare("DELETE FROM alerts WHERE deviceId IN ('867509082945058', '861185084200101', '861185084188827', '861185084122719')").run()
-      db.prepare("DELETE FROM device_history WHERE deviceId IN ('867509082945058', '861185084200101', '861185084188827', '861185084122719')").run()
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('867509082945058', '861185084200101', '861185084188827', '861185084122719')").run()
+      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '867509082945058', '861185084200101', '861185084188827')").run()
+      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '867509082945058', '861185084200101', '861185084188827')").run()
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '867509082945058', '861185084200101', '861185084188827')").run()
     } catch {}
     console.log('[MQTT] Initial devices check complete: Waiting for live device stream')
   } catch (err) {

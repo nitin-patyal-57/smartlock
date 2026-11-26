@@ -180,6 +180,16 @@ router.post('/devices/:id/status-cmd', async (req: Request, res: Response) => {
   }
 })
 
+const GPS_TRACKER_IMEIS = new Set([
+  '861185084122693', // First card: GPS Tracker confirmed by user
+  '861185084122719', // Third card: GPS Tracker confirmed by user
+  '861185084200101',
+  '861185084188827',
+  '867509082945058',
+  '867509083390825',
+  '867509082945140',
+])
+
 // GET /api/devices - Get all devices (latest state)
 router.get('/devices', (req: Request, res: Response) => {
   try {
@@ -201,7 +211,7 @@ router.get('/devices', (req: Request, res: Response) => {
           return null
         }
       })
-      .filter((d: any) => d && d.deviceId && (d.isSmartLock === true || d.deviceType === 'smartlock' || hasLockOption(d)))
+      .filter((d: any) => d && d.deviceId && !GPS_TRACKER_IMEIS.has(d.deviceId) && (d.isSmartLock === true || d.deviceType === 'smartlock' || hasLockOption(d)))
 
     res.json(devices)
   } catch (error) {

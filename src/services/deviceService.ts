@@ -64,6 +64,8 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
 }
 
 export const DEMO_DEVICE_IDS = new Set([
+  '861185084122693', // GPS Tracker confirmed by user (first card)
+  '861185084122719', // GPS Tracker confirmed by user (third card)
   '867509082945058',
   '861185084200101',
   '861185084188827',
@@ -136,10 +138,12 @@ export function isIgnoredDevice(id: string): boolean {
   if (!id) return true
   const clean = id.trim()
   if (
-    clean.startsWith('86750908') ||
+    clean === '861185084122693' || // First card: GPS Tracker confirmed by user
+    clean === '861185084122719' || // Third card: GPS Tracker confirmed by user
+    clean === '861185084200101' || // GPS Tracker
+    clean === '861185084188827' || // Old dummy
+    clean.startsWith('86750908') || // Soundbox
     clean.startsWith('SL-') ||
-    clean === '861185084200101' ||
-    clean === '861185084188827' ||
     DEMO_DEVICE_IDS.has(clean)
   ) {
     return true
