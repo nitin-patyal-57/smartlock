@@ -415,14 +415,32 @@ router.post('/devices', (req: Request, res: Response) => {
   }
 })
 
+// DELETE /api/devices - Clear ALL devices, history, and alerts
+router.delete('/devices', (req: Request, res: Response) => {
+  try {
+    const db = getDb()
+    db.prepare('DELETE FROM alerts').run()
+    db.prepare('DELETE FROM device_history').run()
+    db.prepare('DELETE FROM devices').run()
+    const broadcast = req.app.get('broadcast')
+    if (broadcast) {
+      broadcast('devices_cleared', { timestamp: new Date().toISOString() })
+    }
+    res.json({ success: true, message: 'All older devices and history cleared successfully' })
+  } catch (error) {
+    console.error('Error clearing all devices:', error)
+    res.status(500).json({ error: 'Failed to clear devices' })
+  }
+})
+
 // DELETE /api/devices/:id - Remove device from dashboard
 router.delete('/devices/:id', (req: Request, res: Response) => {
   try {
     const db = getDb()
     const deviceId = req.params.id as string
-    db.prepare('DELETE FROM devices WHERE deviceId = ?').run(deviceId)
-    db.prepare('DELETE FROM device_history WHERE deviceId = ?').run(deviceId)
     db.prepare('DELETE FROM alerts WHERE deviceId = ?').run(deviceId)
+    db.prepare('DELETE FROM device_history WHERE deviceId = ?').run(deviceId)
+    db.prepare('DELETE FROM devices WHERE deviceId = ?').run(deviceId)
     res.json({ success: true, message: `Device ${deviceId} deleted` })
   } catch (error) {
     console.error('Error deleting device:', error)

@@ -724,38 +724,15 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
 function seedInitialDevices() {
   try {
     const db = getDb()
-    // Remove stale demo devices
+    // Remove older/stale devices
     try {
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('867509082945058', '861185084200101')").run()
+      db.prepare("DELETE FROM alerts WHERE deviceId IN ('867509082945058', '861185084200101', '861185084188827', '861185084122719')").run()
+      db.prepare("DELETE FROM device_history WHERE deviceId IN ('867509082945058', '861185084200101', '861185084188827', '861185084122719')").run()
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('867509082945058', '861185084200101', '861185084188827', '861185084122719')").run()
     } catch {}
-
-    const imei = '861185084122719'
-    const now = new Date().toISOString()
-    const defaultGps: ParsedGpsData = {
-      isFixed: true,
-      latitude: 30.657035,
-      longitude: 76.729596,
-      altitude: 301.7,
-      speed: 0,
-      heading: 183,
-      satellites: 29,
-      hdop: 0.6,
-      accuracy: 2.9,
-      lastFix: '2026-11-23T10:32:44Z',
-      lastLocation: '30.65704, 76.72960'
-    }
-    const dev = createDefaultDevice(imei, defaultGps, now)
-    db.prepare(`
-      INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(deviceId) DO UPDATE SET
-        data = excluded.data,
-        status = excluded.status,
-        updatedAt = excluded.updatedAt
-    `).run(imei, dev.deviceName, 'online', now, JSON.stringify(dev), now)
-    console.log(`[MQTT] Synced real device ${imei} baseline into database`)
+    console.log('[MQTT] Initial devices check complete: Waiting for live device stream')
   } catch (err) {
-    console.error('[MQTT] Error seeding initial devices:', err)
+    console.error('[MQTT] Error initializing devices:', err)
   }
 }
 

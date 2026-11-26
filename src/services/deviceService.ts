@@ -63,7 +63,20 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
-export const DEMO_DEVICE_IDS = new Set(['867509082945058', '861185084200101'])
+export const DEMO_DEVICE_IDS = new Set([
+  '867509082945058',
+  '861185084200101',
+  '861185084188827',
+  'SL-001',
+  'SL-002',
+  'SL-003',
+  'SL-004',
+  'SL-005',
+  'SL-006',
+  'SL-007',
+  'SL-008',
+  'SL-WSTEST',
+])
 const STORAGE_CUSTOM_KEY = 'custom_smartlock_devices'
 const STORAGE_DELETED_KEY = 'deleted_smartlock_devices'
 
@@ -86,10 +99,39 @@ export function hasLockOption(json: any): boolean {
 export function isIgnoredDevice(id: string): boolean {
   if (!id) return true
   const clean = id.trim()
-  if (clean.startsWith('86750908') || clean === '861185084200101' || DEMO_DEVICE_IDS.has(clean)) {
+  if (
+    clean.startsWith('86750908') ||
+    clean.startsWith('SL-') ||
+    clean === '861185084200101' ||
+    clean === '861185084188827' ||
+    DEMO_DEVICE_IDS.has(clean)
+  ) {
     return true
   }
   return false
+}
+
+export function clearAllLocalData() {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_CUSTOM_KEY)
+      localStorage.removeItem(STORAGE_DELETED_KEY)
+    }
+  } catch {}
+}
+
+// Auto-purge stale demo entries on load
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem(STORAGE_CUSTOM_KEY)
+    if (raw) {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) {
+        const cleaned = arr.filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId))
+        localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(cleaned))
+      }
+    }
+  } catch {}
 }
 
 export function getDeletedDeviceIds(): Set<string> {
@@ -306,6 +348,19 @@ export const deviceService = {
   getDeletedDeviceIds,
   markDeviceDeleted,
   hasLockOption,
+  clearAllLocalData,
+
+  async clearAllDevices(): Promise<boolean> {
+    clearAllLocalData()
+    try {
+      await fetch(`${config.serverUrl}/api/devices`, {
+        method: 'DELETE',
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+        signal: AbortSignal.timeout(6000),
+      })
+    } catch {}
+    return true
+  },
 
   async getDevices(): Promise<SmartLockDevice[]> {
     const deleted = getDeletedDeviceIds()
@@ -322,7 +377,7 @@ export const deviceService = {
         const devices = await res.json()
         if (Array.isArray(devices)) {
           serverDevices = devices.filter(
-            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && (hasLockOption(d) || d.lock !== undefined || d.deviceId === '861185084122719')
+            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && (hasLockOption(d) || d.lock !== undefined)
           )
         }
       }
@@ -342,10 +397,6 @@ export const deviceService = {
       if (!isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && !deviceMap.has(d.deviceId)) {
         deviceMap.set(d.deviceId, d)
       }
-    }
-
-    if (!deviceMap.has(REAL_DEVICE_861185084122719.deviceId)) {
-      deviceMap.set(REAL_DEVICE_861185084122719.deviceId, REAL_DEVICE_861185084122719)
     }
 
     const list = Array.from(deviceMap.values())
@@ -370,10 +421,6 @@ export const deviceService = {
 
     const custom = getCustomDevicesFromStorage().find((d) => d.deviceId === id)
     if (custom) return custom
-
-    if (id === REAL_DEVICE_861185084122719.deviceId) {
-      return REAL_DEVICE_861185084122719
-    }
 
     return undefined
   },
