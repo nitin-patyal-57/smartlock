@@ -28,7 +28,7 @@ export function useDevices() {
 
     // Real-time WebSocket listener: receives live MQTT pushes (every 1s)
     const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
-      if (deviceService.isIgnoredDevice(deviceId) || deviceService.getDeletedDeviceIds().has(deviceId)) {
+      if (deviceService.isIgnoredDevice(deviceId)) {
         return
       }
       // If data is received, ensure it's smartlock data (contains lock option or is designated test device)

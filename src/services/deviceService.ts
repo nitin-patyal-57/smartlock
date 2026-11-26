@@ -316,24 +316,24 @@ export const deviceService = {
       const res = await fetch(`${config.serverUrl}/api/devices?_t=${Date.now()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache, no-store' },
-        signal: AbortSignal.timeout(3500),
+        signal: AbortSignal.timeout(15000),
       })
       if (res.ok) {
         const devices = await res.json()
         if (Array.isArray(devices)) {
           serverDevices = devices.filter(
-            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && (hasLockOption(d) || d.lock !== undefined || d.deviceId === '861185084122719')
+            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && (hasLockOption(d) || d.lock !== undefined || d.deviceId === '861185084122719')
           )
         }
       }
-    } catch {
-      // Cloud/local MQTT server offline, fallback
+    } catch (e) {
+      console.warn('Failed to fetch devices from server:', e)
     }
 
     const deviceMap = new Map<string, SmartLockDevice>()
 
     for (const d of serverDevices) {
-      if (!isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId)) {
+      if (!isIgnoredDevice(d.deviceId)) {
         deviceMap.set(d.deviceId, d)
       }
     }
@@ -344,7 +344,7 @@ export const deviceService = {
       }
     }
 
-    if (!deleted.has(REAL_DEVICE_861185084122719.deviceId) && !deviceMap.has(REAL_DEVICE_861185084122719.deviceId)) {
+    if (!deviceMap.has(REAL_DEVICE_861185084122719.deviceId)) {
       deviceMap.set(REAL_DEVICE_861185084122719.deviceId, REAL_DEVICE_861185084122719)
     }
 
@@ -358,7 +358,7 @@ export const deviceService = {
     try {
       const res = await fetch(`${config.serverUrl}/api/devices/${id}?_t=${Date.now()}`, {
         cache: 'no-store',
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(10000),
       })
       if (res.ok) {
         const dev = await res.json()
