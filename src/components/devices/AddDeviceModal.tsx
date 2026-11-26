@@ -37,7 +37,7 @@ export default function AddDeviceModal({
       return
     }
 
-    if (cleanImei === '867509082945058' || cleanImei === '861185084200101') {
+    if (cleanImei === '861185084122693' || cleanImei === '861185084122719' || cleanImei === '861185084200101') {
       setError('This demo IMEI has been decommissioned. Please enter your device IMEI.')
       return
     }

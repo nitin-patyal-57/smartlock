@@ -105,85 +105,92 @@ export default function DeviceDetailPage() {
   const d = {
     ...device,
     device: defaults(device.device, {
-      imei: device.deviceId,
-      modelId: 'GW1NS-4',
-      serialNumber: `SN-${device.deviceId.slice(-6)}`,
-      appVersion: 'WMZ_DEV_1.0.3',
-      sdkVersion: 'WM_SDK_C_260810',
-      hardwareVersion: 'Z636_V1',
-      bootReason: 'power-off charging',
-      uptime: 5811,
+      imei: device.deviceId || '867509082945058',
+      modelId: 'WM_SB_1605',
+      serialNumber: '',
+      appVersion: 'WM_BP_2.0.8',
+      sdkVersion: 'WM_SDK_C_260702',
+      hardwareVersion: '',
+      bootReason: '',
+      uptime: 0,
     }),
     power: defaults(device.power, {
-      batteryVoltage: 4.25,
-      batteryPercentage: 100,
-      isCharging: true,
-      isUsbConnected: true,
-      isExternalPower: true,
+      batteryVoltage: 4.08,
+      batteryPercentage: 94,
+      isCharging: false,
+      isUsbConnected: false,
+      isExternalPower: false,
       isLowBattery: false,
-      batteryMv: 4245,
+      batteryMv: 4075,
       extPowerVoltage: '',
+      usb: 'N',
     }),
     cellular: defaults(device.cellular, {
-      operator: '405867',
+      operator: 'JIO 4G',
       networkType: 'LTE',
-      rssi: 21,
+      rssi: 73,
       signalQuality: 5,
-      ip: '100.92.214.39',
-      imsi: '405867153421818',
-      mcc: '405',
-      mnc: '867',
-      cellId: '2946864',
-      tac: '27',
-      band: '5',
-      rsrp: 43,
-      rsrq: 21,
-      sinr: 6,
+      ip: '10.38.65.70',
+      imsi: '405867153266129',
+      mcc: '869',
+      mnc: '405',
+      cellId: '131860',
+      tac: '174',
+      band: '40',
+      rsrp: 35,
+      rsrq: 15,
+      sinr: 0,
       signal: 'EXCELLENT',
-      ip4: '100.92.214.39',
-      ip6: '',
+      ip4: '10.38.65.70',
+      ip6: '254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18',
     }),
     gps: defaults(device.gps, {
       isFixed: true,
-      latitude: 30.657012,
-      longitude: 76.729616,
-      altitude: 289.8,
-      speed: 0.0,
-      heading: 329,
-      satellites: 28,
-      hdop: 0.6,
-      accuracy: 2.8,
-      lastFix: device.lastSeen,
-      lastLocation: '30.65701, 76.72962',
+      latitude: 30.704649,
+      longitude: 76.717873,
+      altitude: 315.5,
+      speed: 42.6,
+      heading: 128,
+      satellites: 14,
+      hdop: 0.9,
+      accuracy: 4.2,
+      lastFix: device.lastSeen || '2026-09-15T10:40:21Z',
+      lastLocation: 'Mohali, Punjab',
       fixType: '3D',
       status: 'FIXED',
     }),
     lock: defaults(device.lock, {
       lockStatus: true,
       doorStatus: false,
-      motorStatus: 'idle',
-      motorCurrent: 0,
+      motorStatus: 'OK',
+      motorCurrent: 420,
       positionSensor: true,
-      lastLockTime: device.lastSeen,
-      lastUnlockTime: '',
-      unlockMethod: 'remote',
-      unlockCount: 1,
-      failedUnlockCount: 0,
+      lastLockTime: '2026-09-15T10:20:15Z',
+      lastUnlockTime: '2026-09-15T09:45:10Z',
+      unlockMethod: 'REMOTE',
+      unlockCount: 24,
+      failedUnlockCount: 2,
+      lockMotorStatus: 'OK',
+      motorCurrentMa: 420,
+      lockPositionSensor: 'LOCKED',
+      lastUnlockMethod: 'REMOTE',
+      lockStatusStr: 'LOCKED',
+      doorStatusStr: 'CLOSED',
     }),
     accelerometer: defaults(device.accelerometer, {
-      motion: false,
-      x: 0.004,
-      y: -0.224,
-      z: -0.968,
+      motion: true,
+      x: 0.04,
+      y: -0.02,
+      z: 1.01,
       status: 'OK',
-      harshBraking: false,
-      harshAcceleration: false,
-      sharpTurn: false,
-      harshBrakingCount: 0,
-      harshAccelerationCount: 0,
-      sharpTurnCount: 0,
+      harshBraking: true,
+      harshAcceleration: true,
+      sharpTurn: true,
+      harshBrakingCount: 2,
+      harshAccelerationCount: 1,
+      sharpTurnCount: 3,
       impactCount: 0,
-      drivingScore: 100,
+      drivingScore: 91,
     }),
     tamper: defaults(device.tamper, {
       tamperStatus: false,
@@ -196,10 +203,18 @@ export default function DeviceDetailPage() {
       lastTamperTime: '',
     }),
     access: defaults(device.access, {
-      keypad: { enabled: true, lastUsed: '', count: 0 },
+      keypad: {
+        status: 'OK',
+        enabled: true,
+        failedAttempts: 0,
+        lastAccess: '2026-09-15T08:30:12Z',
+        lastUsed: '2026-09-15T08:30:12Z',
+        count: 24,
+      },
       nfc: { enabled: true, lastUsed: '', count: 0 },
       bluetooth: { enabled: true, lastUsed: '', count: 0 },
-      remote: { enabled: true, lastUsed: device.lastSeen, count: 1 },
+      remote: { enabled: true, lastUsed: '2026-09-15T10:20:15Z', count: 24 },
+      rtc: '2026-11-17T14:12:23.433Z',
     }),
     sensors: defaults(device.sensors, {
       temperature: 28.0,
@@ -208,7 +223,7 @@ export default function DeviceDetailPage() {
       hardwareSensorStatus: true,
     }),
     rtc: defaults(device.rtc, {
-      rtcTime: device.lastSeen,
+      rtcTime: '2026-11-17T14:12:23.433Z',
       rtcSynced: true,
     }),
   }
@@ -357,11 +372,17 @@ export default function DeviceDetailPage() {
             <InfoRow label="MCC / MNC" value={`${d.cellular.mcc} / ${d.cellular.mnc}`} />
             <InfoRow
               label="IPv4 Address"
-              value={<span className="font-mono text-[11px]">{d.cellular.ip4 || d.cellular.ip || '100.92.214.39'}</span>}
+              value={<span className="font-mono text-[11px]">{d.cellular.ip4 || d.cellular.ip || '10.38.65.70'}</span>}
             />
+            {d.cellular.ip6 && (
+              <InfoRow
+                label="IPv6 Address"
+                value={<span className="font-mono text-[10px] break-all">{d.cellular.ip6}</span>}
+              />
+            )}
             <InfoRow
               label="IMSI"
-              value={<span className="font-mono text-[11px]">{d.cellular.imsi || '405867153421818'}</span>}
+              value={<span className="font-mono text-[11px]">{d.cellular.imsi || '405867153266129'}</span>}
             />
           </div>
         </Card>
@@ -429,6 +450,14 @@ export default function DeviceDetailPage() {
             <InfoRow
               label="Motion State"
               value={d.accelerometer.motion ? 'Active Motion' : 'Stationary'}
+            />
+            <InfoRow
+              label="Driving Score"
+              value={
+                <span className="font-bold text-emerald-500">
+                  {d.accelerometer.drivingScore ?? 91} / 100
+                </span>
+              }
             />
             <InfoRow label="Harsh Braking Events" value={d.accelerometer.harshBrakingCount ?? 0} />
             <InfoRow label="Harsh Acceleration Events" value={d.accelerometer.harshAccelerationCount ?? 0} />
@@ -501,7 +530,7 @@ export default function DeviceDetailPage() {
               label="Lock Status"
               value={
                 <span className={`font-bold ${d.lock.lockStatus ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {d.lock.lockStatus ? '🔒 Locked' : '🔓 Unlocked'}
+                  {d.lock.lockStatusStr ? (d.lock.lockStatus ? `🔒 ${d.lock.lockStatusStr}` : `🔓 ${d.lock.lockStatusStr}`) : (d.lock.lockStatus ? '🔒 LOCKED' : '🔓 UNLOCKED')}
                 </span>
               }
             />
@@ -509,47 +538,34 @@ export default function DeviceDetailPage() {
               label="Door Status"
               value={
                 <span className={`font-semibold ${d.lock.doorStatus ? 'text-red-400' : 'text-slate-300'}`}>
-                  {d.lock.doorStatus ? 'Door Open' : 'Door Closed'}
+                  {d.lock.doorStatusStr || (d.lock.doorStatus ? 'OPEN' : 'CLOSED')}
                 </span>
               }
             />
-            <InfoRow label="Motor Status" value={d.lock.motorStatus || 'idle'} />
-            <InfoRow label="Motor Current" value={`${d.lock.motorCurrent || 0} mA`} />
+            <InfoRow label="Lock Motor Status" value={<span className="font-semibold text-emerald-400">{d.lock.lockMotorStatus || d.lock.motorStatus || 'OK'}</span>} />
+            <InfoRow label="Motor Current" value={`${d.lock.motorCurrentMa ?? d.lock.motorCurrent ?? 420} mA`} />
             <InfoRow
-              label="Position Sensor"
+              label="Lock Position Sensor"
               value={
-                d.lock.positionSensor ? (
-                  <span className="text-emerald-500 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Engaged
-                  </span>
-                ) : (
-                  <span className="text-slate-400">Disengaged</span>
-                )
+                <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {d.lock.lockPositionSensor || (d.lock.positionSensor ? 'LOCKED' : 'UNLOCKED')}
+                </span>
               }
             />
-            <InfoRow label="Unlock Method" value={d.lock.unlockMethod || 'remote'} />
-            <InfoRow label="Unlock Count" value={d.lock.unlockCount || 0} />
-            <InfoRow
-              label="Tamper Detection"
-              value={
-                d.tamper?.tamperStatus ? (
-                  <span className="text-red-500 font-bold flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5" /> TAMPER ALERT
-                  </span>
-                ) : (
-                  <span className="text-emerald-500 font-semibold">Normal (Secure)</span>
-                )
-              }
-            />
-            <InfoRow label="Last Lock Event" value={formatTimeSafe(d.lock.lastLockTime)} />
+            <InfoRow label="Last Unlock Method" value={<span className="font-bold text-indigo-400">{d.lock.lastUnlockMethod || d.lock.unlockMethod || 'REMOTE'}</span>} />
+            <InfoRow label="Unlock Count" value={d.lock.unlockCount ?? 24} />
+            <InfoRow label="Failed Unlock Count" value={<span className={(d.lock.failedUnlockCount ?? 0) > 0 ? 'text-amber-400 font-semibold' : ''}>{d.lock.failedUnlockCount ?? 2}</span>} />
+            <InfoRow label="Last Lock Time" value={formatTimeSafe(d.lock.lastLockTime)} />
+            <InfoRow label="Last Unlock Time" value={formatTimeSafe(d.lock.lastUnlockTime)} />
           </div>
         </Card>
 
-        {/* 8. ACCESS METHODS & CREDENTIALS */}
+        {/* 8. ACCESS METHODS & SENSORS */}
         <Card padding="md">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-3">
             <Key className="h-4 w-4 text-indigo-500" />
-            <span>Access Methods & Credentials</span>
+            <span>Access Methods & Keypad</span>
           </h3>
           <div className="grid grid-cols-2 gap-2 mb-3">
             {[
@@ -575,13 +591,37 @@ export default function DeviceDetailPage() {
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{method.label}</span>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    {info.enabled ? 'Enabled' : 'Disabled'} &middot; {info.count || 0} uses
+                    {info.enabled ? 'Enabled' : 'Disabled'} &middot; {info.count ?? 0} uses
                   </p>
                 </div>
               )
             })}
           </div>
           <div className="space-y-1">
+            <InfoRow
+              label="Keypad Status / Attempts"
+              value={
+                <span className="font-semibold text-emerald-400">
+                  {(d.access as any)?.keypad?.status || 'OK'} &middot; Failed: {(d.access as any)?.keypad?.failedAttempts ?? 0}
+                </span>
+              }
+            />
+            <InfoRow
+              label="Last Keypad Access"
+              value={formatTimeSafe((d.access as any)?.keypad?.lastAccess || (d.access as any)?.keypad?.lastUsed)}
+            />
+            <InfoRow
+              label="Tamper Status"
+              value={
+                d.tamper?.tamperStatus ? (
+                  <span className="text-red-500 font-bold flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" /> TAMPER ALERT
+                  </span>
+                ) : (
+                  <span className="text-emerald-500 font-semibold">Normal (Secure)</span>
+                )
+              }
+            />
             <InfoRow
               label="Hardware Security Sensor"
               value={
@@ -593,7 +633,6 @@ export default function DeviceDetailPage() {
               }
             />
             <InfoRow label="Internal Temperature" value={`${d.sensors?.internalTemperature || 31}°C`} />
-            <InfoRow label="Ambient Humidity" value={`${d.sensors?.humidity || 50}%`} />
           </div>
         </Card>
       </div>

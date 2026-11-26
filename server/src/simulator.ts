@@ -2,7 +2,7 @@ import mqtt from 'mqtt'
 import { MQTT_CA, MQTT_CERT, MQTT_KEY } from './services/mqttCerts'
 
 const AWS_IOT_ENDPOINT = process.env.MQTT_BROKER_URL || 'mqtts://avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com:8883'
-const IMEI = process.argv[2] || '861185084122719'
+const IMEI = process.argv[2] || '867509082945058'
 
 const METRICS_TOPIC = `soundbox_dev/${IMEI}/metrics`
 const COMMAND_TOPIC = `soundbox_dev/${IMEI}/command`
@@ -57,78 +57,97 @@ client.on('connect', () => {
     const metrics = {
       device: {
         imei: IMEI,
-        model_id: 'GW1NS-4',
-        serial_no: `SN-${IMEI.slice(-6)}`,
-        app_v: 'WMZ_DEV_1.0.2',
-        sdk_v: 'WM_SDK_C_261008',
-        hw_v: 'Z636_V1',
-        boot_reason: 'power-off charging',
-        uptime_sec: uptime
+        model_id: 'WM_SB_1605',
+        serial_no: '',
+        app_v: 'WM_BP_2.0.8',
+        sdk_v: 'WM_SDK_C_260702',
+        hw_v: '',
+        boot_reason: '',
+        uptime_sec: ''
       },
       power: {
-        bat_v: 4222,
-        bat_lvl: 100,
-        charging: 'Y',
-        usb: 'Y',
-        ext_power: 'Y',
+        bat_v: 4075,
+        bat_lvl: 94,
+        charging: '',
+        usb: 'N',
+        ext_power: '',
         ext_power_v: '',
-        low_battery: false
+        low_battery: ''
       },
       cellular: {
-        imsi: '404022437552332',
-        operator: 'IND airtel',
+        imsi: '405867153266129',
+        operator: 'JIO 4G',
         net_t: 'LTE',
-        mcc: '404',
-        mnc: '02',
-        cell_id: '128026133',
-        tac: '7911',
-        rssi: 29,
-        rsrp: 52,
-        rsrq: 13,
-        sinr: -4,
+        mcc: '869',
+        mnc: '405',
+        cell_id: '131860',
+        tac: '174',
+        rssi: 73,
+        rsrp: 35,
+        rsrq: 15,
+        sinr: '',
         signal: 'EXCELLENT',
-        band: '3',
-        ip4: '172.18.222.207',
-        ip6: '254.128.0.0.0.0.0.0.0.0.0.0.20.235.208.251'
+        band: '40',
+        ip4: '10.38.65.70',
+        ip6: '254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18'
       },
       gps: {
         status: 'FIXED',
         latitude: lat,
         longitude: lon,
-        altitude_m: 301.7,
-        speed_kmph: speed,
-        heading_deg: heading,
-        satellites: 29,
-        hdop: 0.6,
-        accuracy_m: 2.9,
+        altitude_m: 315.5,
+        speed_kmph: speed || 42.6,
+        heading_deg: heading || 128,
+        satellites: 14,
+        hdop: 0.9,
+        accuracy_m: 4.2,
         fix_type: '3D',
         last_fix: nowIso,
-        location: ''
-      },
-      accelerometer: {
-        status: 'OK',
-        motion: speed > 0,
-        x_g: -0.008,
-        y_g: 0.008,
-        z_g: -1.043,
-        harsh_braking_count: 0,
-        harsh_acceleration_count: 0,
-        sharp_turn_count: 0,
-        impact_count: 0,
-        driving_score: ''
+        location: 'Mohali, Punjab'
       },
       lock: {
-        status: relays['1'] === 'on' ? 'locked' : 'unlocked',
-        lock_status: relays['1'] === 'on',
-        door_status: false,
-        motor_status: 'idle',
-        motor_current: 0,
-        position_sensor: true,
-        last_lock_time: nowIso,
-        last_unlock_time: '',
-        unlock_method: 'remote'
+        lock_status: relays['1'] === 'off' ? 'LOCKED' : 'UNLOCKED',
+        door_status: 'CLOSED',
+        lock_motor_status: 'OK',
+        motor_current_ma: 420,
+        lock_position_sensor: 'LOCKED',
+        last_lock_time: '2026-09-15T10:20:15Z',
+        last_unlock_time: '2026-09-15T09:45:10Z',
+        last_unlock_method: 'REMOTE',
+        unlock_count: 24,
+        failed_unlock_count: 2
       },
-      rtc: nowIso
+      access: {
+        keypad: {
+          status: 'OK',
+          enabled: true,
+          failed_attempts: 0,
+          last_access: '2026-09-15T08:30:12Z'
+        },
+        tamper: {
+          tamper_status: '',
+          case_open: '',
+          wire_cut: '',
+          lock_break: '',
+          abnormal_vibration: '',
+          forced_unlock: '',
+          tamper_count: '',
+          last_tamper_time: ''
+        },
+        accelerometer: {
+          status: 'OK',
+          motion: true,
+          x_g: 0.04,
+          y_g: -0.02,
+          z_g: 1.01,
+          harsh_braking_count: 2,
+          harsh_acceleration_count: 1,
+          sharp_turn_count: 3,
+          impact_count: 0,
+          driving_score: 91
+        },
+        rtc: '2026-11-17T14:12:23.433Z'
+      }
     }
 
     const payload = JSON.stringify(metrics)

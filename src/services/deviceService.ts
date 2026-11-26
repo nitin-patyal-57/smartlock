@@ -1,6 +1,6 @@
 import { config } from './config'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
-import { REAL_DEVICE_861185084122719 } from './realDevice'
+import { REAL_DEVICE_867509082945058 } from './realDevice'
 import { mockDevices, mockAlerts, mockLocationHistory, mockActivityEvents } from './mockData'
 import { database, ref, onValue, get, query, orderByChild, startAt, endAt, isFirebaseConfigured } from './firebase'
 
@@ -66,7 +66,6 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
 export const DEMO_DEVICE_IDS = new Set([
   '861185084122693', // GPS Tracker confirmed by user (first card)
   '861185084122719', // GPS Tracker confirmed by user (third card)
-  '867509082945058',
   '861185084200101',
   '861185084188827',
   'SL-001',
@@ -142,7 +141,6 @@ export function isIgnoredDevice(id: string): boolean {
     clean === '861185084122719' || // Third card: GPS Tracker confirmed by user
     clean === '861185084200101' || // GPS Tracker
     clean === '861185084188827' || // Old dummy
-    clean.startsWith('86750908') || // Soundbox
     clean.startsWith('SL-') ||
     DEMO_DEVICE_IDS.has(clean)
   ) {
@@ -439,6 +437,10 @@ export const deviceService = {
       }
     }
 
+    if (!deleted.has(REAL_DEVICE_867509082945058.deviceId) && !deviceMap.has(REAL_DEVICE_867509082945058.deviceId)) {
+      deviceMap.set(REAL_DEVICE_867509082945058.deviceId, REAL_DEVICE_867509082945058)
+    }
+
     const list = Array.from(deviceMap.values())
     return list.sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
   },
@@ -461,6 +463,10 @@ export const deviceService = {
 
     const custom = getCustomDevicesFromStorage().find((d) => d.deviceId === id)
     if (custom) return custom
+
+    if (id === REAL_DEVICE_867509082945058.deviceId && !getDeletedDeviceIds().has(id)) {
+      return REAL_DEVICE_867509082945058
+    }
 
     return undefined
   },

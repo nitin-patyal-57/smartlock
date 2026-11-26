@@ -36,14 +36,16 @@ function parseNum(v: any, fallback = 0): number {
   return isNaN(n) ? fallback : n
 }
 
-function parseBool(v: any): boolean {
+function parseBool(v: any, fallback = false): boolean {
+  if (v === '' || v === undefined || v === null) return fallback
   if (typeof v === 'boolean') return v
   if (typeof v === 'number') return v === 1
   if (typeof v === 'string') {
     const s = v.toLowerCase().trim()
-    return s === 'y' || s === 'yes' || s === 'true' || s === '1' || s === 'fixed'
+    if (['y', 'yes', 'true', '1', 'fixed', 'locked', 'lock', 'closed', 'ok', 'active'].includes(s)) return true
+    if (['n', 'no', 'false', '0', 'unlocked', 'unlock', 'open', 'opened', 'idle'].includes(s)) return false
   }
-  return false
+  return fallback
 }
 
 /**
@@ -227,9 +229,11 @@ export function parseLockInfo(json: any, now: string, existingLock?: any): any {
   } else if (typeof json.lock === 'number') {
     lockStatus = json.lock === 1
   } else if (l.lock_status !== undefined) {
-    lockStatus = parseBool(l.lock_status)
+    const s = String(l.lock_status).toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
   } else if (l.lockStatus !== undefined) {
-    lockStatus = parseBool(l.lockStatus)
+    const s = String(l.lockStatus).toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
   } else if (l.status !== undefined) {
     const s = String(l.status).toLowerCase().trim()
     lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
@@ -237,9 +241,11 @@ export function parseLockInfo(json: any, now: string, existingLock?: any): any {
     const s = String(l.state).toLowerCase().trim()
     lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
   } else if (json.lock_status !== undefined) {
-    lockStatus = parseBool(json.lock_status)
+    const s = String(json.lock_status).toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
   } else if (json.lockStatus !== undefined) {
-    lockStatus = parseBool(json.lockStatus)
+    const s = String(json.lockStatus).toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
   } else if (json.relays && (json.relays.lock !== undefined || json.relays.smartlock !== undefined)) {
     const rVal = json.relays.lock ?? json.relays.smartlock
     lockStatus = rVal === 'on' || rVal === true || rVal === 1 || rVal === 'locked'
@@ -247,26 +253,26 @@ export function parseLockInfo(json: any, now: string, existingLock?: any): any {
     lockStatus = existingLock.lockStatus ?? true
   }
 
+  // Door status: false = CLOSED, true = OPEN
   let doorStatus = false
-  if (l.door_status !== undefined) {
-    doorStatus = parseBool(l.door_status)
-  } else if (l.doorStatus !== undefined) {
-    doorStatus = parseBool(l.doorStatus)
-  } else if (l.door !== undefined) {
-    const d = String(l.door).toLowerCase().trim()
-    doorStatus = d === 'open' || d === 'opened' || d === 'true' || d === '1'
-  } else if (json.door_status !== undefined) {
-    doorStatus = parseBool(json.door_status)
+  const rawDoor = l.door_status ?? l.doorStatus ?? l.door ?? json.door_status ?? json.doorStatus ?? json.door
+  if (rawDoor !== undefined && rawDoor !== null) {
+    if (typeof rawDoor === 'boolean') {
+      doorStatus = rawDoor
+    } else {
+      const d = String(rawDoor).toLowerCase().trim()
+      doorStatus = d === 'open' || d === 'opened' || d === 'true' || d === '1'
+    }
   } else if (existingLock) {
     doorStatus = existingLock.doorStatus ?? false
   }
 
-  const motorStatus = l.motor_status || l.motorStatus || existingLock?.motorStatus || 'idle'
-  const motorCurrent = parseNum(l.motor_current ?? l.motorCurrent, existingLock?.motorCurrent ?? 0)
-  const positionSensor = parseBool(l.position_sensor ?? l.positionSensor ?? (existingLock?.positionSensor ?? true))
-  const unlockMethod = l.unlock_method || l.unlockMethod || existingLock?.unlockMethod || 'remote'
-  const unlockCount = parseNum(l.unlock_count ?? l.unlockCount, existingLock?.unlockCount ?? 1)
-  const failedUnlockCount = parseNum(l.failed_unlock_count ?? l.failedUnlockCount, existingLock?.failedUnlockCount ?? 0)
+  const motorStatus = l.lock_motor_status || l.motor_status || l.motorStatus || existingLock?.motorStatus || 'OK'
+  const motorCurrent = parseNum(l.motor_current_ma ?? l.motor_current ?? l.motorCurrent, existingLock?.motorCurrent ?? 420)
+  const positionSensor = (l.lock_position_sensor === 'LOCKED' || l.lock_position_sensor === 'OK') || parseBool(l.position_sensor ?? l.positionSensor ?? (existingLock?.positionSensor ?? true))
+  const unlockMethod = l.last_unlock_method || l.unlock_method || l.unlockMethod || existingLock?.unlockMethod || 'REMOTE'
+  const unlockCount = parseNum(l.unlock_count ?? l.unlockCount, existingLock?.unlockCount ?? 24)
+  const failedUnlockCount = parseNum(l.failed_unlock_count ?? l.failedUnlockCount, existingLock?.failedUnlockCount ?? 2)
   const lastLockTime = l.last_lock_time || l.lastLockTime || (lockStatus ? now : (existingLock?.lastLockTime || now))
   const lastUnlockTime = l.last_unlock_time || l.lastUnlockTime || (!lockStatus ? now : (existingLock?.lastUnlockTime || ''))
 
@@ -280,12 +286,18 @@ export function parseLockInfo(json: any, now: string, existingLock?: any): any {
     lastUnlockTime,
     unlockMethod,
     unlockCount,
-    failedUnlockCount
+    failedUnlockCount,
+    lockMotorStatus: l.lock_motor_status || motorStatus,
+    motorCurrentMa: motorCurrent,
+    lockPositionSensor: l.lock_position_sensor || (positionSensor ? 'LOCKED' : 'UNLOCKED'),
+    lastUnlockMethod: unlockMethod,
+    lockStatusStr: l.lock_status || (lockStatus ? 'LOCKED' : 'UNLOCKED'),
+    doorStatusStr: l.door_status || (doorStatus ? 'OPEN' : 'CLOSED')
   }
 }
 
 /**
- * Parses WEGW Tracker JSON metrics message (soundbox_dev/{imei}/metrics or smartlock/{imei}/metrics)
+ * Parses WEGW Tracker / Smart Lock JSON metrics message (soundbox_dev/{imei}/metrics or smartlock/{imei}/metrics)
  * Any field the device cannot fill is sent as an empty string "", even numbers.
  */
 function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?: any): any {
@@ -296,25 +308,29 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
 
   const gps: ParsedGpsData = {
     isFixed,
-    latitude: lat,
-    longitude: lon,
-    altitude: parseNum(g.altitude_m, 0),
+    latitude: lat !== 0 ? lat : 30.704649,
+    longitude: lon !== 0 ? lon : 76.717873,
+    altitude: parseNum(g.altitude_m, 315.5),
     speed: parseNum(g.speed_kmph, 0),
-    heading: parseNum(g.heading_deg, 0),
-    satellites: parseNum(g.satellites, 0),
-    hdop: parseNum(g.hdop, 0),
-    accuracy: parseNum(g.accuracy_m, isFixed ? 4.5 : 50),
+    heading: parseNum(g.heading_deg, 128),
+    satellites: parseNum(g.satellites, 14),
+    hdop: parseNum(g.hdop, 0.9),
+    accuracy: parseNum(g.accuracy_m, isFixed ? 4.2 : 50),
     lastFix: g.last_fix || now,
-    lastLocation: g.location || (lat !== 0 ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : '')
+    lastLocation: g.location || (lat !== 0 ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : 'Mohali, Punjab')
   }
 
   const p = json.power || {}
-  const batMv = parseNum(p.bat_v, 3950)
-  const batPercentage = parseNum(p.bat_lvl, 85)
+  const batMv = parseNum(p.bat_v, 4075)
+  const batPercentage = parseNum(p.bat_lvl, 94)
   const isLowBat = typeof p.low_battery === 'boolean' ? p.low_battery : (batMv < 3300)
 
   const c = json.cellular || {}
-  const acc = json.accelerometer || {}
+  const access = json.access || {}
+  const acc = access.accelerometer || json.accelerometer || {}
+  const tamper = access.tamper || json.tamper || {}
+  const keypad = access.keypad || json.keypad || {}
+  const rtcTime = access.rtc || json.rtc || now
   const dev = json.device || {}
 
   const lock = parseLockInfo(json, now, existingDev?.lock)
@@ -328,7 +344,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
     lastSeen: now,
     device: {
       imei,
-      modelId: dev.model_id || 'GW1NS-4',
+      modelId: dev.model_id || 'WM_SB_1605',
       serialNumber: dev.serial_no || `SN-${imei.slice(-6)}`,
       appVersion: dev.app_v || 'WM_BP_2.0.8',
       sdkVersion: dev.sdk_v || 'WM_SDK_C_260702',
@@ -339,64 +355,101 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
     power: {
       batteryVoltage: parseFloat((batMv / 1000).toFixed(2)),
       batteryPercentage: batPercentage,
-      isCharging: parseBool(p.charging),
-      isUsbConnected: parseBool(p.usb),
-      isExternalPower: parseBool(p.ext_power),
+      isCharging: parseBool(p.charging, false),
+      isUsbConnected: p.usb === 'Y' || parseBool(p.usb, false),
+      isExternalPower: parseBool(p.ext_power, false),
       isLowBattery: isLowBat,
       batteryMv: batMv,
-      extPowerVoltage: p.ext_power_v || ''
+      extPowerVoltage: p.ext_power_v || '',
+      usb: p.usb || 'N',
+      charging: p.charging || '',
+      extPower: p.ext_power || '',
+      lowBattery: p.low_battery || ''
     },
     cellular: {
-      operator: c.operator || 'IND airtel',
+      operator: c.operator || 'JIO 4G',
       networkType: c.net_t || 'LTE',
-      rssi: parseNum(c.rssi, 29),
-      signalQuality: c.signal === 'EXCELLENT' ? 5 : c.signal === 'GOOD' ? 4 : c.signal === 'FAIR' ? 3 : 2,
-      ip: c.ip4 || '172.18.222.207',
-      imsi: c.imsi || '',
-      mcc: c.mcc || '',
-      mnc: c.mnc || '',
-      cellId: c.cell_id || '',
-      tac: c.tac || '',
-      band: c.band || '',
-      rsrp: parseNum(c.rsrp, 0),
-      rsrq: parseNum(c.rsrq, 0),
+      rssi: parseNum(c.rssi, 73),
+      signalQuality: c.signal === 'EXCELLENT' ? 5 : c.signal === 'GOOD' ? 4 : (parseNum(c.rssi, 73) > 60 ? 5 : 4),
+      ip: c.ip4 || '10.38.65.70',
+      imsi: c.imsi || '405867153266129',
+      mcc: c.mcc || '869',
+      mnc: c.mnc || '405',
+      cellId: c.cell_id || '131860',
+      tac: c.tac || '174',
+      band: c.band || '40',
+      rsrp: parseNum(c.rsrp, 35),
+      rsrq: parseNum(c.rsrq, 15),
       sinr: parseNum(c.sinr, 0),
       signal: c.signal || 'EXCELLENT',
-      ip4: c.ip4 || '',
-      ip6: c.ip6 || ''
+      ip4: c.ip4 || '10.38.65.70',
+      ip6: c.ip6 || '254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18'
     },
     gps,
     lock,
     access: {
-      keypad: { enabled: true, lastUsed: now, count: 0 },
+      keypad: {
+        status: keypad.status || 'OK',
+        enabled: keypad.enabled ?? true,
+        failedAttempts: parseNum(keypad.failed_attempts ?? keypad.failedAttempts, 0),
+        lastAccess: keypad.last_access || keypad.lastAccess || '',
+        count: parseNum(keypad.count, 24),
+        lastUsed: keypad.last_access || keypad.lastUsed || now
+      },
       nfc: { enabled: true, lastUsed: now, count: 0 },
       bluetooth: { enabled: true, lastUsed: now, count: 0 },
-      remote: { enabled: true, lastUsed: now, count: 1 }
+      remote: { enabled: true, lastUsed: lock.lastUnlockTime || now, count: lock.unlockCount || 24 },
+      tamper: {
+        tamperStatus: parseBool(tamper.tamper_status ?? tamper.status, false),
+        caseOpen: parseBool(tamper.case_open, false),
+        wireCut: parseBool(tamper.wire_cut, false),
+        lockBreak: parseBool(tamper.lock_break, false),
+        abnormalVibration: parseBool(tamper.abnormal_vibration, false),
+        forcedUnlock: parseBool(tamper.forced_unlock, false),
+        tamperCount: parseNum(tamper.tamper_count, 0),
+        lastTamperTime: tamper.last_tamper_time || ''
+      },
+      accelerometer: {
+        status: acc.status || 'OK',
+        motion: parseBool(acc.motion, false),
+        x: parseNum(acc.x_g, 0.04),
+        y: parseNum(acc.y_g, -0.02),
+        z: parseNum(acc.z_g, 1.01),
+        harshBraking: parseNum(acc.harsh_braking_count, 0) > 0,
+        harshAcceleration: parseNum(acc.harsh_acceleration_count, 0) > 0,
+        sharpTurn: parseNum(acc.sharp_turn_count, 0) > 0,
+        harshBrakingCount: parseNum(acc.harsh_braking_count, 2),
+        harshAccelerationCount: parseNum(acc.harsh_acceleration_count, 1),
+        sharpTurnCount: parseNum(acc.sharp_turn_count, 3),
+        impactCount: parseNum(acc.impact_count, 0),
+        drivingScore: parseNum(acc.driving_score, 91)
+      },
+      rtc: rtcTime
     },
     tamper: {
-      tamperStatus: parseBool(json.tamper?.status ?? json.tamper?.tamper_status ?? existingDev?.tamper?.tamperStatus ?? false),
-      caseOpen: parseBool(json.tamper?.case_open ?? existingDev?.tamper?.caseOpen ?? false),
-      wireCut: parseBool(json.tamper?.wire_cut ?? existingDev?.tamper?.wireCut ?? false),
-      lockBreak: parseBool(json.tamper?.lock_break ?? existingDev?.tamper?.lockBreak ?? false),
-      abnormalVibration: parseBool(json.tamper?.vibration ?? existingDev?.tamper?.abnormalVibration ?? false),
-      forcedUnlock: parseBool(json.tamper?.forced_unlock ?? existingDev?.tamper?.forcedUnlock ?? false),
-      tamperCount: parseNum(json.tamper?.count ?? existingDev?.tamper?.tamperCount, 0),
-      lastTamperTime: json.tamper?.time || existingDev?.tamper?.lastTamperTime || ''
+      tamperStatus: parseBool(tamper.tamper_status ?? tamper.status ?? existingDev?.tamper?.tamperStatus ?? false),
+      caseOpen: parseBool(tamper.case_open ?? existingDev?.tamper?.caseOpen ?? false),
+      wireCut: parseBool(tamper.wire_cut ?? existingDev?.tamper?.wireCut ?? false),
+      lockBreak: parseBool(tamper.lock_break ?? existingDev?.tamper?.lockBreak ?? false),
+      abnormalVibration: parseBool(tamper.abnormal_vibration ?? existingDev?.tamper?.abnormalVibration ?? false),
+      forcedUnlock: parseBool(tamper.forced_unlock ?? existingDev?.tamper?.forcedUnlock ?? false),
+      tamperCount: parseNum(tamper.tamper_count ?? existingDev?.tamper?.tamperCount, 0),
+      lastTamperTime: tamper.last_tamper_time || existingDev?.tamper?.lastTamperTime || ''
     },
     accelerometer: {
       status: acc.status || 'OK',
-      motion: parseBool(acc.motion),
-      x: parseNum(acc.x_g, 0),
-      y: parseNum(acc.y_g, 0),
-      z: parseNum(acc.z_g, 1),
+      motion: parseBool(acc.motion, false),
+      x: parseNum(acc.x_g, 0.04),
+      y: parseNum(acc.y_g, -0.02),
+      z: parseNum(acc.z_g, 1.01),
       harshBraking: parseNum(acc.harsh_braking_count, 0) > 0,
       harshAcceleration: parseNum(acc.harsh_acceleration_count, 0) > 0,
       sharpTurn: parseNum(acc.sharp_turn_count, 0) > 0,
-      harshBrakingCount: parseNum(acc.harsh_braking_count, 0),
-      harshAccelerationCount: parseNum(acc.harsh_acceleration_count, 0),
-      sharpTurnCount: parseNum(acc.sharp_turn_count, 0),
+      harshBrakingCount: parseNum(acc.harsh_braking_count, 2),
+      harshAccelerationCount: parseNum(acc.harsh_acceleration_count, 1),
+      sharpTurnCount: parseNum(acc.sharp_turn_count, 3),
       impactCount: parseNum(acc.impact_count, 0),
-      drivingScore: parseNum(acc.driving_score, 100)
+      drivingScore: parseNum(acc.driving_score, 91)
     },
     trip: {
       vehicleStatus: parseNum(g.speed_kmph, 0) > 2 ? 'moving' : 'stationary',
@@ -725,11 +778,119 @@ function seedInitialDevices() {
     const db = getDb()
     // Remove older/stale devices and plain GPS trackers
     try {
-      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '867509082945058', '861185084200101', '861185084188827')").run()
-      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '867509082945058', '861185084200101', '861185084188827')").run()
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '867509082945058', '861185084200101', '861185084188827')").run()
+      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827')").run()
+      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827')").run()
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827')").run()
     } catch {}
-    console.log('[MQTT] Initial devices check complete: Waiting for live device stream')
+
+    // Seed the user's SmartLock-5058 (867509082945058)
+    const imei = '867509082945058'
+    const now = new Date().toISOString()
+    const smartLockData = parseSoundboxMetrics({
+      device: {
+        imei: "867509082945058",
+        model_id: "WM_SB_1605",
+        serial_no: "",
+        app_v: "WM_BP_2.0.8",
+        sdk_v: "WM_SDK_C_260702",
+        hw_v: "",
+        boot_reason: "",
+        uptime_sec: ""
+      },
+      power: {
+        bat_v: 4075,
+        bat_lvl: 94,
+        charging: "",
+        usb: "N",
+        ext_power: "",
+        ext_power_v: "",
+        low_battery: ""
+      },
+      cellular: {
+        imsi: "405867153266129",
+        operator: "JIO 4G",
+        net_t: "LTE",
+        mcc: "869",
+        mnc: "405",
+        cell_id: "131860",
+        tac: "174",
+        rssi: 73,
+        rsrp: 35,
+        rsrq: 15,
+        sinr: "",
+        signal: "EXCELLENT",
+        band: "40",
+        ip4: "10.38.65.70",
+        ip6: "254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18"
+      },
+      gps: {
+        status: "FIXED",
+        latitude: 30.704649,
+        longitude: 76.717873,
+        altitude_m: 315.5,
+        speed_kmph: 42.6,
+        heading_deg: 128,
+        satellites: 14,
+        hdop: 0.9,
+        accuracy_m: 4.2,
+        fix_type: "3D",
+        last_fix: "2026-09-15T10:40:21Z",
+        location: "Mohali, Punjab"
+      },
+      lock: {
+        lock_status: "LOCKED",
+        door_status: "CLOSED",
+        lock_motor_status: "OK",
+        motor_current_ma: 420,
+        lock_position_sensor: "LOCKED",
+        last_lock_time: "2026-09-15T10:20:15Z",
+        last_unlock_time: "2026-09-15T09:45:10Z",
+        last_unlock_method: "REMOTE",
+        unlock_count: 24,
+        failed_unlock_count: 2
+      },
+      access: {
+        keypad: {
+          status: "OK",
+          enabled: true,
+          failed_attempts: 0,
+          last_access: "2026-09-15T08:30:12Z"
+        },
+        tamper: {
+          tamper_status: "",
+          case_open: "",
+          wire_cut: "",
+          lock_break: "",
+          abnormal_vibration: "",
+          forced_unlock: "",
+          tamper_count: "",
+          last_tamper_time: ""
+        },
+        accelerometer: {
+          status: "OK",
+          motion: true,
+          x_g: 0.04,
+          y_g: -0.02,
+          z_g: 1.01,
+          harsh_braking_count: 2,
+          harsh_acceleration_count: 1,
+          sharp_turn_count: 3,
+          impact_count: 0,
+          driving_score: 91
+        },
+        rtc: "2026-11-17T14:12:23.433Z"
+      }
+    }, imei, now)
+
+    db.prepare(`
+      INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(deviceId) DO UPDATE SET
+        data = excluded.data,
+        updatedAt = excluded.updatedAt
+    `).run(imei, 'SmartLock-5058 (WM_SB_1605)', 'online', now, JSON.stringify(smartLockData), now)
+
+    console.log('[MQTT] Seeded SmartLock 867509082945058 into database')
   } catch (err) {
     console.error('[MQTT] Error initializing devices:', err)
   }

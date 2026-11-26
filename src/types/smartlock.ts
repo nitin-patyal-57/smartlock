@@ -18,6 +18,10 @@ export interface PowerInfo {
   isLowBattery: boolean;
   batteryMv?: number;
   extPowerVoltage?: string;
+  usb?: string;
+  charging?: string;
+  extPower?: string;
+  lowBattery?: string | boolean;
 }
 
 export interface CellularInfo {
@@ -67,12 +71,21 @@ export interface LockInfo {
   unlockMethod: string;
   unlockCount: number;
   failedUnlockCount: number;
+  lockMotorStatus?: string;
+  motorCurrentMa?: number;
+  lockPositionSensor?: string;
+  lastUnlockMethod?: string;
+  lockStatusStr?: string;
+  doorStatusStr?: string;
 }
 
 export interface AccessMethod {
   enabled: boolean;
   lastUsed: string;
   count: number;
+  status?: string;
+  failedAttempts?: number;
+  lastAccess?: string;
 }
 
 export interface AccessInfo {
@@ -80,6 +93,9 @@ export interface AccessInfo {
   nfc: AccessMethod;
   bluetooth: AccessMethod;
   remote: AccessMethod;
+  tamper?: TamperInfo;
+  accelerometer?: AccelerometerInfo;
+  rtc?: string;
 }
 
 export interface TamperInfo {
