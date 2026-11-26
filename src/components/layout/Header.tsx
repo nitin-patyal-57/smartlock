@@ -35,7 +35,7 @@ export const Header = React.memo(function Header({ onMenuClick }: HeaderProps) {
   )
   const unacknowledgedCount = unacknowledgedAlerts.length
 
-  const pageTitle = routeTitles[location.pathname] || 'Overview'
+  const pageTitle = routeTitles[location.pathname] || (location.pathname.startsWith('/locks/') ? 'Smart Lock Overview' : 'Overview')
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)

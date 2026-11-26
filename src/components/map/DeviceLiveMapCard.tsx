@@ -288,11 +288,11 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-slate-300">
             <Battery className="h-3.5 w-3.5 text-emerald-400" />
-            {device.power?.batteryPercentage || 100}% ({device.power?.batteryVoltage || '4.22'}V)
+            {device.power?.batteryPercentage ?? 94}% ({device.power?.batteryVoltage ?? '4.08'}V)
           </span>
           <span className="hidden md:flex items-center gap-1 text-slate-400 font-mono text-[11px]">
             <Wifi className="h-3.5 w-3.5 text-cyan-400" />
-            {device.cellular?.operator || 'IND airtel'}
+            {device.cellular?.operator || 'JIO 4G'}
           </span>
           {trail.length > 1 && (
             <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-full">
