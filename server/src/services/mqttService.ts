@@ -156,22 +156,60 @@ export function parseNmeaPayload(rawPayload: string): { gps: ParsedGpsData | nul
 }
 
 /**
- * Check if the incoming JSON payload contains a smartlock option.
+ * Check if the incoming JSON payload specifically belongs to a SmartLock device.
+ * Excludes plain GPS trackers, vehicle trackers, and soundboxes that only have GPS/cellular/relays without lock hardware.
  */
-export function hasLockOption(json: any): boolean {
+export function hasLockOption(json: any, topic?: string): boolean {
   if (!json || typeof json !== 'object') return false
-  return (
-    'lock' in json ||
-    'lock_status' in json ||
-    'lockStatus' in json ||
-    'smartlock' in json ||
-    'smart_lock' in json ||
-    'lock_state' in json ||
-    'lockState' in json ||
-    'door_status' in json ||
-    'doorStatus' in json ||
-    (json.relays && (json.relays['1'] !== undefined || json.relays.lock !== undefined))
-  )
+
+  // Topic check: if published on a dedicated smartlock topic
+  if (topic && (topic.startsWith('smartlock/') || topic.includes('/smartlock/'))) {
+    return true
+  }
+
+  // Explicit device type/model declaration
+  if (
+    json.isSmartLock === true ||
+    json.deviceType === 'smartlock' ||
+    json.device_type === 'smartlock' ||
+    json.type === 'smartlock' ||
+    json.device?.type === 'smartlock' ||
+    json.device?.device_type === 'smartlock'
+  ) {
+    return true
+  }
+
+  // Explicit lock object: must exist and have content
+  if (json.lock !== undefined && json.lock !== null) {
+    if (typeof json.lock === 'object') {
+      const keys = Object.keys(json.lock)
+      if (keys.length > 0) return true
+    } else {
+      return true
+    }
+  }
+
+  // Explicit lock/door status properties in payload
+  if (
+    json.lock_status !== undefined ||
+    json.lockStatus !== undefined ||
+    json.lock_state !== undefined ||
+    json.lockState !== undefined ||
+    json.door_status !== undefined ||
+    json.doorStatus !== undefined ||
+    json.door !== undefined ||
+    json.smartlock !== undefined ||
+    json.smart_lock !== undefined
+  ) {
+    return true
+  }
+
+  // Explicit lock relay (plain relays like relay '1' on vehicle GPS trackers are NOT smartlocks)
+  if (json.relays && (json.relays.lock !== undefined || json.relays.smartlock !== undefined)) {
+    return true
+  }
+
+  return false
 }
 
 /**
@@ -202,8 +240,9 @@ export function parseLockInfo(json: any, now: string, existingLock?: any): any {
     lockStatus = parseBool(json.lock_status)
   } else if (json.lockStatus !== undefined) {
     lockStatus = parseBool(json.lockStatus)
-  } else if (json.relays && json.relays['1'] !== undefined) {
-    lockStatus = json.relays['1'] === 'on'
+  } else if (json.relays && (json.relays.lock !== undefined || json.relays.smartlock !== undefined)) {
+    const rVal = json.relays.lock ?? json.relays.smartlock
+    lockStatus = rVal === 'on' || rVal === true || rVal === 1 || rVal === 'locked'
   } else if (existingLock) {
     lockStatus = existingLock.lockStatus ?? true
   }
@@ -283,6 +322,8 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
   return {
     deviceId: imei,
     deviceName: dev.model_id ? `${dev.model_id} (${imei})` : `SmartLock-${imei.slice(-4)}`,
+    deviceType: 'smartlock',
+    isSmartLock: true,
     status: isLowBat ? 'warning' : 'online',
     lastSeen: now,
     device: {
@@ -552,9 +593,9 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
         const json = JSON.parse(rawPayload)
 
         // Only receive the device if in the JSON data there is a lock option (smartlock data)
-        const isSmartLock = hasLockOption(json) || imei === '861185084122719'
+        const isSmartLock = hasLockOption(json, topic)
         if (!isSmartLock) {
-          console.log(`[MQTT] Skipping ${imei}: No lock option in JSON (non-smartlock device)`)
+          console.log(`[MQTT] Skipping ${imei}: Plain GPS tracker / non-smartlock device ignored`)
           return
         }
 
@@ -647,7 +688,7 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
       return
     }
 
-    // 3. Check for legacy NMEA: wegw/{imei}/gps/nmea
+    // 3. Check for legacy NMEA: wegw/{imei}/gps/nmea - Plain GPS tracker data (excluded from smartlocks)
     const legacyMatch = topic.match(/^wegw\/([^/]+)\/gps\/nmea$/)
     if (legacyMatch) {
       const imei = legacyMatch[1]
@@ -656,62 +697,7 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
       if (broadcastFn) {
         broadcastFn('mqtt_nmea', { deviceId: imei, raw: rawPayload, sentences, timestamp: now })
       }
-
-      if (!gps) return
-
-      console.log(`[MQTT Legacy NMEA] ${imei}: Lat=${gps.latitude}, Lon=${gps.longitude}, Sats=${gps.satellites}`)
-
-      const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
-      let deviceData: any
-
-      if (existingRow) {
-        try {
-          deviceData = JSON.parse(existingRow.data)
-        } catch {
-          deviceData = createDefaultDevice(imei, gps, now)
-        }
-        deviceData.gps = { ...deviceData.gps, ...gps }
-        deviceData.status = 'online'
-        deviceData.lastSeen = now
-      } else {
-        deviceData = createDefaultDevice(imei, gps, now)
-      }
-
-      db.prepare(`
-        INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(deviceId) DO UPDATE SET
-          status = excluded.status,
-          lastSeen = excluded.lastSeen,
-          data = excluded.data,
-          updatedAt = excluded.updatedAt
-      `).run(imei, deviceData.deviceName, 'online', now, JSON.stringify(deviceData), now)
-
-      db.prepare(`
-        INSERT INTO device_history 
-        (deviceId, latitude, longitude, altitude, speed, heading, accuracy, 
-         batteryPercentage, batteryVoltage, lockStatus, doorStatus, signalQuality, rssi, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        imei,
-        gps.latitude,
-        gps.longitude,
-        gps.altitude,
-        gps.speed,
-        gps.heading,
-        gps.accuracy,
-        deviceData.power?.batteryPercentage || 85,
-        deviceData.power?.batteryVoltage || 3.95,
-        deviceData.lock?.lockStatus ? 1 : 0,
-        deviceData.lock?.doorStatus ? 1 : 0,
-        deviceData.cellular?.signalQuality || 4,
-        deviceData.cellular?.rssi || -70,
-        now
-      )
-
-      if (broadcastFn) {
-        broadcastFn('device_update', { deviceId: imei, data: deviceData, timestamp: now })
-      }
+      return
     }
   } catch (error) {
     console.error('[MQTT] Error processing MQTT message:', error)

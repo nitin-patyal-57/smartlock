@@ -14,10 +14,13 @@ router.post('/devices/:id/telemetry', (req: Request, res: Response) => {
     const now = new Date().toISOString()
 
     // Receive device only if in JSON data there is a lock option (smartlock data)
-    const isSmartLock = hasLockOption(data) || deviceId === '861185084122719'
+    const isSmartLock = hasLockOption(data)
     if (!isSmartLock) {
-      return res.status(400).json({ error: 'Device data does not contain lock option (not a smartlock device)' })
+      return res.status(400).json({ error: 'Device data is not a SmartLock payload (GPS tracker rejected)' })
     }
+
+    data.isSmartLock = true
+    data.deviceType = 'smartlock'
 
     // Parse and normalize the lock info into data.lock
     data.lock = parseLockInfo(data, now, data.lock)
@@ -183,17 +186,22 @@ router.get('/devices', (req: Request, res: Response) => {
     const db = getDb()
     const rows = db.prepare('SELECT * FROM devices ORDER BY updatedAt DESC').all()
 
-    // Filter out old demo devices and only include smartlock devices (having lock option)
+    // Only include genuine SmartLock devices (exclude plain GPS trackers / soundboxes)
     const devices = rows
-      .filter((row: any) => row.deviceId !== '867509082945058' && row.deviceId !== '861185084200101')
-      .map((row: any) => ({
-        ...JSON.parse(row.data),
-        status: row.status,
-        lastSeen: row.lastSeen,
-        deviceId: row.deviceId,
-        deviceName: row.deviceName,
-      }))
-      .filter((d: any) => hasLockOption(d) || d.lock !== undefined || d.deviceId === '861185084122719')
+      .map((row: any) => {
+        try {
+          return {
+            ...JSON.parse(row.data),
+            status: row.status,
+            lastSeen: row.lastSeen,
+            deviceId: row.deviceId,
+            deviceName: row.deviceName,
+          }
+        } catch {
+          return null
+        }
+      })
+      .filter((d: any) => d && d.deviceId && (d.isSmartLock === true || d.deviceType === 'smartlock' || hasLockOption(d)))
 
     res.json(devices)
   } catch (error) {

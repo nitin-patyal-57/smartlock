@@ -80,20 +80,56 @@ export const DEMO_DEVICE_IDS = new Set([
 const STORAGE_CUSTOM_KEY = 'custom_smartlock_devices'
 const STORAGE_DELETED_KEY = 'deleted_smartlock_devices'
 
+/**
+ * Check if a device payload represents a genuine SmartLock device.
+ * Filters out plain GPS trackers, vehicle trackers, and soundboxes that only have GPS/cellular/relays without lock hardware.
+ */
 export function hasLockOption(json: any): boolean {
   if (!json || typeof json !== 'object') return false
-  return (
-    'lock' in json ||
-    'lock_status' in json ||
-    'lockStatus' in json ||
-    'smartlock' in json ||
-    'smart_lock' in json ||
-    'lock_state' in json ||
-    'lockState' in json ||
-    'door_status' in json ||
-    'doorStatus' in json ||
-    Boolean(json.relays && (json.relays['1'] !== undefined || json.relays.lock !== undefined))
-  )
+
+  // Explicit type declaration
+  if (
+    json.isSmartLock === true ||
+    json.deviceType === 'smartlock' ||
+    json.device_type === 'smartlock' ||
+    json.type === 'smartlock' ||
+    json.device?.type === 'smartlock' ||
+    json.device?.device_type === 'smartlock'
+  ) {
+    return true
+  }
+
+  // Explicit lock object: must exist and have content
+  if (json.lock !== undefined && json.lock !== null) {
+    if (typeof json.lock === 'object') {
+      const keys = Object.keys(json.lock)
+      if (keys.length > 0) return true
+    } else {
+      return true
+    }
+  }
+
+  // Explicit lock/door status properties in payload
+  if (
+    json.lock_status !== undefined ||
+    json.lockStatus !== undefined ||
+    json.lock_state !== undefined ||
+    json.lockState !== undefined ||
+    json.door_status !== undefined ||
+    json.doorStatus !== undefined ||
+    json.door !== undefined ||
+    json.smartlock !== undefined ||
+    json.smart_lock !== undefined
+  ) {
+    return true
+  }
+
+  // Explicit lock relay (plain relays like relay '1' on vehicle GPS trackers are NOT smartlocks)
+  if (json.relays && (json.relays.lock !== undefined || json.relays.smartlock !== undefined)) {
+    return true
+  }
+
+  return false
 }
 
 export function isIgnoredDevice(id: string): boolean {
@@ -377,7 +413,7 @@ export const deviceService = {
         const devices = await res.json()
         if (Array.isArray(devices)) {
           serverDevices = devices.filter(
-            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && (hasLockOption(d) || d.lock !== undefined)
+            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && hasLockOption(d)
           )
         }
       }
@@ -413,7 +449,7 @@ export const deviceService = {
       })
       if (res.ok) {
         const dev = await res.json()
-        if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId)) return dev
+        if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId) && hasLockOption(dev)) return dev
       }
     } catch {
       // Server fallback

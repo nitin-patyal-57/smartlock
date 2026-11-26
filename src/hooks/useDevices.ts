@@ -31,8 +31,8 @@ export function useDevices() {
       if (deviceService.isIgnoredDevice(deviceId)) {
         return
       }
-      // If data is received, ensure it's smartlock data (contains lock option or is designated test device)
-      if (!deviceService.hasLockOption(data) && !data.lock && deviceId !== '861185084122719') {
+      // Strictly recognize and allow only genuine SmartLock devices (ignore plain GPS trackers)
+      if (!deviceService.hasLockOption(data)) {
         return
       }
       setDevices(prev => {
