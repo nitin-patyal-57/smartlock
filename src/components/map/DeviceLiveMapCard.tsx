@@ -91,26 +91,11 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
 
   // Marker icon: Animated 3D Navigation Arrow when moving, Parked Lock Pin when stationary
   const markerIcon = useMemo(() => {
-    if (!hasGps) return undefined
     if (isMoving) {
       return createMovingVehicleMarker(heading, speed, device.deviceName)
     }
     return createStationaryMarker(device.status, device.lock?.lockStatus)
-  }, [hasGps, isMoving, heading, speed, device.deviceName, device.status, device.lock?.lockStatus])
-
-  if (!hasGps) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50">
-        <MapPin className="h-10 w-10 text-slate-400 mb-2 animate-bounce" />
-        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-          Awaiting GPS Satellite Fix
-        </h4>
-        <p className="text-xs text-slate-500 mt-1 max-w-sm">
-          Device {device.deviceId} is connected to MQTT. Once GNSS satellites lock, real-time Google Maps movement plotting will begin automatically.
-        </p>
-      </div>
-    )
-  }
+  }, [isMoving, heading, speed, device.deviceName, device.status, device.lock?.lockStatus])
 
   return (
     <div className={`relative ${height} w-full overflow-hidden rounded-2xl border border-slate-200 shadow-xl dark:border-slate-800`}>
