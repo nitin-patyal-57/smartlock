@@ -150,7 +150,23 @@ export default function DeviceDetailPage() {
           </h1>
           <p className="font-mono text-sm text-slate-500 dark:text-slate-400">{d.deviceId}</p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {/* Lock State Badge */}
+          <div
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border shadow-xs transition ${
+              d.lock?.lockStatus
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+            }`}
+          >
+            {d.lock?.lockStatus ? (
+              <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Unlock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            )}
+            <span>{d.lock?.lockStatus ? 'Locked' : 'Unlocked'}</span>
+          </div>
+
           <StatusBadge
             label={d.status}
             variant={d.status === 'online' ? 'success' : d.status === 'offline' ? 'danger' : 'warning'}
