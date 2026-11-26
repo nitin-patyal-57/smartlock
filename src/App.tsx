@@ -29,6 +29,8 @@ export default function App() {
                   <Route path="/" element={<OverviewPage />} />
                   <Route path="/locks" element={<SmartLocksPage />} />
                   <Route path="/locks/:id" element={<DeviceDetailPage />} />
+                  <Route path="/devices" element={<SmartLocksPage />} />
+                  <Route path="/devices/:id" element={<DeviceDetailPage />} />
                   <Route path="/map" element={<LiveMapPage />} />
                   <Route path="/history" element={<LocationHistoryPage />} />
                   <Route path="/battery-history" element={<BatteryHistoryPage />} />

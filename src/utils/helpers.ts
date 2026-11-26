@@ -1,10 +1,66 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { formatDistanceToNow, format } from 'date-fns'
+import { formatDistanceToNow, format, isValid } from 'date-fns'
 import type { SmartLockDevice } from '@/types/smartlock'
 
 export function cn(...classes: ClassValue[]): string {
   return twMerge(clsx(classes))
+}
+
+export function parseDateSafe(val: string | number | undefined | null): Date | null {
+  if (!val) return null
+  if (typeof val === 'number') {
+    const d = new Date(val)
+    return isValid(d) ? d : null
+  }
+  const str = String(val).trim()
+  if (!str) return null
+
+  if (/^\d+$/.test(str)) {
+    const num = Number(str)
+    const ms = str.length === 10 ? num * 1000 : num
+    const d = new Date(ms)
+    return isValid(d) ? d : null
+  }
+
+  const d = new Date(str)
+  return isValid(d) ? d : null
+}
+
+export function formatTimeSafe(
+  val: string | number | undefined | null,
+  pattern = 'yyyy-MM-dd HH:mm:ss',
+  fallback = 'N/A'
+): string {
+  const d = parseDateSafe(val)
+  if (!d) return fallback
+  try {
+    return format(d, pattern)
+  } catch {
+    return fallback
+  }
+}
+
+export function formatRelativeTime(
+  val: string | number | undefined | null,
+  fallback = 'Never'
+): string {
+  const d = parseDateSafe(val)
+  if (!d) return fallback
+  try {
+    const diffSec = Math.floor((Date.now() - d.getTime()) / 1000)
+    if (diffSec < 10 && diffSec >= -120) return 'Just now'
+    if (diffSec < 60 && diffSec >= 10) return `${diffSec}s ago`
+    return formatDistanceToNow(d, { addSuffix: true })
+  } catch {
+    return fallback
+  }
+}
+
+export function getHeadingDirection(heading: number): string {
+  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+  const index = Math.round(((heading %= 360) < 0 ? heading + 360 : heading) / 45) % 8
+  return directions[index]
 }
 
 export function formatBattery(percentage: number): string {

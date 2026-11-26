@@ -63,49 +63,359 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
+export const DEMO_DEVICE_IDS = new Set(['867509082945058', '861185084200101'])
+const STORAGE_CUSTOM_KEY = 'custom_smartlock_devices'
+const STORAGE_DELETED_KEY = 'deleted_smartlock_devices'
+
+export function isIgnoredDevice(id: string): boolean {
+  if (!id) return true
+  const clean = id.trim()
+  if (clean.startsWith('86750908') || clean === '861185084200101' || DEMO_DEVICE_IDS.has(clean)) {
+    return true
+  }
+  return false
+}
+
+export function getDeletedDeviceIds(): Set<string> {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_DELETED_KEY) : null
+    if (raw) {
+      const arr = JSON.parse(raw)
+      return new Set([...arr])
+    }
+  } catch {}
+  return new Set()
+}
+
+export function markDeviceDeleted(deviceId: string) {
+  try {
+    const set = getDeletedDeviceIds()
+    set.add(deviceId)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_DELETED_KEY, JSON.stringify(Array.from(set)))
+
+      const custom = getCustomDevicesFromStorage()
+      const filtered = custom.filter((d) => d.deviceId !== deviceId)
+      localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(filtered))
+    }
+  } catch {}
+}
+
+export function getCustomDevicesFromStorage(): SmartLockDevice[] {
+  try {
+    if (typeof window === 'undefined') return []
+    const raw = localStorage.getItem(STORAGE_CUSTOM_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        const deleted = getDeletedDeviceIds()
+        return parsed.filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId))
+      }
+    }
+  } catch {}
+  return []
+}
+
+export function saveCustomDeviceToStorage(device: SmartLockDevice) {
+  try {
+    if (typeof window === 'undefined' || isIgnoredDevice(device.deviceId)) return
+
+    const current = getCustomDevicesFromStorage().filter((d) => d.deviceId !== device.deviceId)
+    current.unshift(device)
+    localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(current))
+
+    const deleted = getDeletedDeviceIds()
+    if (deleted.has(device.deviceId)) {
+      deleted.delete(device.deviceId)
+      localStorage.setItem(STORAGE_DELETED_KEY, JSON.stringify(Array.from(deleted)))
+    }
+  } catch {}
+}
+
+function createDefaultDevice(cleanImei: string, name?: string, model?: string): SmartLockDevice {
+  const now = new Date().toISOString()
+  const label = name?.trim() || `Smart Lock ${cleanImei.slice(-4)}`
+  const modelId = model?.trim() || 'GW1NS-4'
+
+  return {
+    deviceId: cleanImei,
+    deviceName: label,
+    status: 'online',
+    lastSeen: now,
+    device: {
+      imei: cleanImei,
+      modelId,
+      serialNumber: `SN-${cleanImei.slice(-6)}`,
+      appVersion: 'WMZ_DEV_1.0.2',
+      sdkVersion: 'WM_SDK_C_261008',
+      hardwareVersion: 'Z636_V1',
+      bootReason: 'manual registration',
+      uptime: 0,
+    },
+    power: {
+      batteryVoltage: 4.22,
+      batteryPercentage: 100,
+      isCharging: false,
+      isUsbConnected: false,
+      isExternalPower: false,
+      isLowBattery: false,
+      batteryMv: 4222,
+      extPowerVoltage: '',
+    },
+    cellular: {
+      operator: 'IND airtel',
+      networkType: 'LTE',
+      rssi: 28,
+      signalQuality: 4,
+      ip: '172.18.222.207',
+      imsi: '',
+      mcc: '404',
+      mnc: '02',
+      cellId: '',
+      tac: '',
+      band: '3',
+      rsrp: 52,
+      rsrq: 13,
+      sinr: 0,
+      signal: 'EXCELLENT',
+      ip4: '172.18.222.207',
+      ip6: '',
+    },
+    gps: {
+      isFixed: true,
+      latitude: 30.657035,
+      longitude: 76.729596,
+      altitude: 301.7,
+      speed: 0,
+      heading: 0,
+      satellites: 24,
+      hdop: 0.8,
+      accuracy: 2.5,
+      lastFix: now,
+      lastLocation: 'Mohali / Zirakpur, PB',
+      fixType: '3D',
+      status: 'FIXED',
+    },
+    lock: {
+      lockStatus: true,
+      doorStatus: false,
+      motorStatus: 'idle',
+      motorCurrent: 0,
+      positionSensor: true,
+      lastLockTime: now,
+      lastUnlockTime: '',
+      unlockMethod: 'manual',
+      unlockCount: 0,
+      failedUnlockCount: 0,
+    },
+    access: {
+      keypad: { enabled: true, lastUsed: '', count: 0 },
+      nfc: { enabled: true, lastUsed: '', count: 0 },
+      bluetooth: { enabled: true, lastUsed: '', count: 0 },
+      remote: { enabled: true, lastUsed: '', count: 0 },
+    },
+    tamper: {
+      tamperStatus: false,
+      caseOpen: false,
+      wireCut: false,
+      lockBreak: false,
+      abnormalVibration: false,
+      forcedUnlock: false,
+      tamperCount: 0,
+      lastTamperTime: '',
+    },
+    accelerometer: {
+      motion: false,
+      x: 0,
+      y: 0,
+      z: -1,
+      status: 'OK',
+      harshBraking: false,
+      harshAcceleration: false,
+      sharpTurn: false,
+      harshBrakingCount: 0,
+      harshAccelerationCount: 0,
+      sharpTurnCount: 0,
+      impactCount: 0,
+      drivingScore: 100,
+    },
+    trip: {
+      vehicleStatus: 'stationary',
+      tripStatus: false,
+      tripId: `TRIP-${cleanImei.slice(-4)}`,
+      distance: 0,
+      maximumSpeed: 0,
+      overspeedCount: 0,
+    },
+    geofence: {
+      status: 'inside',
+      geofenceId: 'GF-01',
+      violation: false,
+      lastEvent: 'enter',
+    },
+    sensors: {
+      temperature: 28.0,
+      internalTemperature: 31.0,
+      humidity: 50,
+      hardwareSensorStatus: true,
+    },
+    security: {
+      deviceBinding: true,
+      vehicleId: '',
+      customerId: '',
+      certificateStatus: true,
+      secureBoot: true,
+      firmwareSignature: true,
+    },
+    memory: {
+      totalStorage: 16777216,
+      usedStorage: 5242880,
+      freeStorage: 11534336,
+    },
+    diagnostics: {
+      lastDiagnosticTime: now,
+      errorCodes: [],
+      systemHealth: 'good',
+    },
+    rtc: {
+      rtcTime: now,
+      rtcSynced: true,
+    },
+  }
+}
+
 // Main service - pure MQTT from SmartLock cloud server
 export const deviceService = {
+  isIgnoredDevice,
+  getDeletedDeviceIds,
+  markDeviceDeleted,
+
   async getDevices(): Promise<SmartLockDevice[]> {
-    if (config.USE_MOCK_DATA) return [REAL_DEVICE_861185084122719]
+    const deleted = getDeletedDeviceIds()
+    const customDevices = getCustomDevicesFromStorage()
+    let serverDevices: SmartLockDevice[] = []
 
     try {
-      const res = await fetch(`${config.serverUrl}/api/devices`, { signal: AbortSignal.timeout(3000) })
+      const res = await fetch(`${config.serverUrl}/api/devices?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+        signal: AbortSignal.timeout(3500),
+      })
       if (res.ok) {
         const devices = await res.json()
-        if (Array.isArray(devices) && devices.length > 0) {
-          // Filter to prioritize real device 861185084122719 and remove stale demo devices
-          const realDevice = devices.find((d: any) => d.deviceId === '861185084122719')
-          if (realDevice) {
-            return [realDevice]
-          }
-          return devices
+        if (Array.isArray(devices)) {
+          serverDevices = devices.filter(
+            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId)
+          )
         }
       }
     } catch {
-      // Cloud/local MQTT server not reachable, use real device telemetry
+      // Cloud/local MQTT server offline, fallback
     }
 
-    return [REAL_DEVICE_861185084122719]
+    const deviceMap = new Map<string, SmartLockDevice>()
+
+    for (const d of serverDevices) {
+      if (!isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId)) {
+        deviceMap.set(d.deviceId, d)
+      }
+    }
+
+    for (const d of customDevices) {
+      if (!isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && !deviceMap.has(d.deviceId)) {
+        deviceMap.set(d.deviceId, d)
+      }
+    }
+
+    if (!deleted.has(REAL_DEVICE_861185084122719.deviceId) && !deviceMap.has(REAL_DEVICE_861185084122719.deviceId)) {
+      deviceMap.set(REAL_DEVICE_861185084122719.deviceId, REAL_DEVICE_861185084122719)
+    }
+
+    const list = Array.from(deviceMap.values())
+    return list.sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
   },
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
-    if (config.USE_MOCK_DATA) return REAL_DEVICE_861185084122719
+    if (!id || isIgnoredDevice(id) || getDeletedDeviceIds().has(id)) return undefined
 
     try {
-      const res = await fetch(`${config.serverUrl}/api/devices/${id}`, { signal: AbortSignal.timeout(3000) })
+      const res = await fetch(`${config.serverUrl}/api/devices/${id}?_t=${Date.now()}`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(3000),
+      })
       if (res.ok) {
         const dev = await res.json()
-        if (dev && dev.deviceId) return dev
+        if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId)) return dev
       }
     } catch {
       // Server fallback
     }
 
-    if (id === '861185084122719' || !id) {
+    const custom = getCustomDevicesFromStorage().find((d) => d.deviceId === id)
+    if (custom) return custom
+
+    if (id === REAL_DEVICE_861185084122719.deviceId) {
       return REAL_DEVICE_861185084122719
     }
 
     return undefined
+  },
+
+  async addDevice(params: { imei: string; deviceName?: string; modelId?: string }): Promise<SmartLockDevice> {
+    const cleanImei = params.imei.trim()
+    if (!cleanImei || cleanImei.length < 10) {
+      throw new Error('Valid IMEI of at least 10 digits required')
+    }
+    if (isIgnoredDevice(cleanImei)) {
+      throw new Error('This demo IMEI has been decommissioned.')
+    }
+
+    const name = params.deviceName?.trim() || `Smart Lock ${cleanImei.slice(-4)}`
+    const model = params.modelId?.trim() || 'GW1NS-4'
+    const newDevice = createDefaultDevice(cleanImei, name, model)
+
+    try {
+      const res = await fetch(`${config.serverUrl}/api/devices`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store',
+        },
+        body: JSON.stringify({
+          imei: cleanImei,
+          deviceName: name,
+          modelId: model,
+        }),
+        signal: AbortSignal.timeout(4000),
+      })
+
+      if (res.ok) {
+        const body = await res.json()
+        if (body.device) {
+          saveCustomDeviceToStorage(body.device)
+          return body.device
+        }
+      }
+    } catch {
+      // Server offline fallback
+    }
+
+    saveCustomDeviceToStorage(newDevice)
+    return newDevice
+  },
+
+  async deleteDevice(deviceId: string): Promise<boolean> {
+    markDeviceDeleted(deviceId)
+    try {
+      await fetch(`${config.serverUrl}/api/devices/${deviceId}`, {
+        method: 'DELETE',
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+        signal: AbortSignal.timeout(3000),
+      })
+    } catch {
+      // Local removal succeeded
+    }
+    return true
   },
 
   async getAlerts(): Promise<Alert[]> {

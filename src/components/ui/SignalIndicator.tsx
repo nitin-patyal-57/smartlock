@@ -3,12 +3,21 @@ import { cn } from '@/utils/helpers'
 
 interface SignalIndicatorProps {
   rssi: number
-  signalQuality: number
+  signalQuality?: number
+  signalText?: string
   size?: 'sm' | 'md'
+  showText?: boolean
   className?: string
 }
 
-export default React.memo(function SignalIndicator({ rssi, size = 'md', className }: SignalIndicatorProps) {
+export default React.memo(function SignalIndicator({
+  rssi,
+  signalQuality = 4,
+  signalText,
+  size = 'md',
+  showText = false,
+  className,
+}: SignalIndicatorProps) {
   const getBarCount = () => {
     if (rssi > -50) return 4
     if (rssi > -70) return 3
@@ -26,24 +35,31 @@ export default React.memo(function SignalIndicator({ rssi, size = 'md', classNam
   const barWidth = size === 'sm' ? 'w-[3px]' : 'w-[4px]'
 
   return (
-    <div className={cn('inline-flex items-end gap-[2px]', className)}>
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className={cn(
-            barWidth,
-            'rounded-full transition-colors duration-200',
-            i < barCount
-              ? barCount >= 3
-                ? 'bg-emerald-500'
-                : barCount === 2
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
-              : 'bg-slate-200 dark:bg-slate-600',
-            heights[size][i]
-          )}
-        />
-      ))}
+    <div className={cn('inline-flex items-center gap-1.5', className)}>
+      <div className="flex items-end gap-[2px]">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={cn(
+              barWidth,
+              'rounded-full transition-colors duration-200',
+              i < barCount
+                ? barCount >= 3
+                  ? 'bg-emerald-500'
+                  : barCount === 2
+                    ? 'bg-amber-500'
+                    : 'bg-red-500'
+                : 'bg-slate-200 dark:bg-slate-600',
+              heights[size][i]
+            )}
+          />
+        ))}
+      </div>
+      {showText && (
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+          {signalText || `${signalQuality}/5`}
+        </span>
+      )}
     </div>
   )
 })

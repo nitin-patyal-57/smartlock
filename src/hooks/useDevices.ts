@@ -28,6 +28,9 @@ export function useDevices() {
 
     // Real-time WebSocket listener: receives live MQTT pushes (every 1s)
     const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
+      if (deviceService.isIgnoredDevice(deviceId) || deviceService.getDeletedDeviceIds().has(deviceId)) {
+        return
+      }
       setDevices(prev => {
         const idx = prev.findIndex(d => d.deviceId === deviceId)
         if (idx >= 0) {
@@ -43,6 +46,23 @@ export function useDevices() {
       if (typeof unsubscribe === 'function') unsubscribe()
     }
   }, [fetchDevices])
+
+  const addDevice = useCallback(async (params: { imei: string; deviceName?: string; modelId?: string }) => {
+    const newDev = await deviceService.addDevice(params)
+    setDevices(prev => {
+      const filtered = prev.filter(d => d.deviceId !== newDev.deviceId)
+      return [newDev, ...filtered]
+    })
+    return newDev
+  }, [])
+
+  const deleteDevice = useCallback(async (deviceId: string) => {
+    const success = await deviceService.deleteDevice(deviceId)
+    if (success) {
+      setDevices(prev => prev.filter(d => d.deviceId !== deviceId))
+    }
+    return success
+  }, [])
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -63,7 +83,7 @@ export function useDevices() {
     }
   }, [isAutoRefreshEnabled, refreshInterval, fetchDevices])
 
-  return { devices, loading, error, refetch: fetchDevices }
+  return { devices, loading, error, refetch: fetchDevices, addDevice, deleteDevice }
 }
 
 export function useDevice(id: string) {

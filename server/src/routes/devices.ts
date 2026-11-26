@@ -261,6 +261,165 @@ router.get('/devices/:id/history', (req: Request, res: Response) => {
   }
 })
 
+// POST /api/devices - Register new device manually
+router.post('/devices', (req: Request, res: Response) => {
+  try {
+    const { imei, deviceName, modelId } = req.body
+    if (!imei) {
+      return res.status(400).json({ error: 'Device IMEI is required' })
+    }
+
+    const cleanImei = String(imei).trim()
+    const db = getDb()
+    const now = new Date().toISOString()
+    const name = deviceName?.trim() || `Smart Lock ${cleanImei.slice(-4)}`
+    const model = modelId?.trim() || 'GW1NS-4'
+
+    // Check if device already exists
+    const existing = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(cleanImei) as any
+    if (existing) {
+      const dev = {
+        ...JSON.parse(existing.data),
+        deviceId: existing.deviceId,
+        deviceName: existing.deviceName,
+        status: existing.status,
+        lastSeen: existing.lastSeen,
+      }
+      return res.json({ success: true, device: dev })
+    }
+
+    const initialData = {
+      deviceId: cleanImei,
+      deviceName: name,
+      status: 'online',
+      lastSeen: now,
+      device: {
+        imei: cleanImei,
+        modelId: model,
+        serialNumber: `SN-${cleanImei.slice(-6)}`,
+        appVersion: 'WMZ_DEV_1.0.2',
+        sdkVersion: 'WM_SDK_C_261008',
+        hardwareVersion: 'Z636_V1',
+        bootReason: 'manual registration',
+        uptime: 0,
+      },
+      power: {
+        batteryVoltage: 4.22,
+        batteryPercentage: 100,
+        isCharging: false,
+        isUsbConnected: false,
+        isExternalPower: false,
+        isLowBattery: false,
+        batteryMv: 4222,
+        extPowerVoltage: '',
+      },
+      cellular: {
+        operator: 'IND airtel',
+        networkType: 'LTE',
+        rssi: 28,
+        signalQuality: 4,
+        ip: '172.18.222.207',
+        imsi: '',
+        mcc: '404',
+        mnc: '02',
+        cellId: '',
+        tac: '',
+        band: '3',
+        rsrp: 52,
+        rsrq: 13,
+        sinr: 0,
+        signal: 'EXCELLENT',
+        ip4: '172.18.222.207',
+        ip6: '',
+      },
+      gps: {
+        isFixed: true,
+        latitude: 30.657035,
+        longitude: 76.729596,
+        altitude: 301.7,
+        speed: 0,
+        heading: 0,
+        satellites: 24,
+        hdop: 0.8,
+        accuracy: 2.5,
+        lastFix: now,
+        lastLocation: 'Mohali / Zirakpur, PB',
+        fixType: '3D',
+        status: 'FIXED',
+      },
+      lock: {
+        lockStatus: true,
+        doorStatus: false,
+        motorStatus: 'idle',
+        motorCurrent: 0,
+        positionSensor: true,
+        lastLockTime: now,
+        lastUnlockTime: '',
+        unlockMethod: 'manual',
+        unlockCount: 0,
+        failedUnlockCount: 0,
+      },
+      access: {
+        keypad: { enabled: true, lastUsed: '', count: 0 },
+        nfc: { enabled: true, lastUsed: '', count: 0 },
+        bluetooth: { enabled: true, lastUsed: '', count: 0 },
+        remote: { enabled: true, lastUsed: '', count: 0 },
+      },
+      tamper: {
+        tamperStatus: false,
+        caseOpen: false,
+        wireCut: false,
+        lockBreak: false,
+        abnormalVibration: false,
+        forcedUnlock: false,
+        tamperCount: 0,
+        lastTamperTime: '',
+      },
+      accelerometer: {
+        motion: false,
+        x: 0,
+        y: 0,
+        z: -1,
+        status: 'OK',
+        xG: 0,
+        yG: 0,
+        zG: -1,
+        harshBrakingCount: 0,
+        harshAccelerationCount: 0,
+        sharpTurnCount: 0,
+        impactCount: 0,
+        drivingScore: '100',
+      },
+      rtc: now,
+    }
+
+    db.prepare(`
+      INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(cleanImei, name, 'online', now, JSON.stringify(initialData), now)
+
+    res.status(201).json({ success: true, device: initialData })
+  } catch (error: any) {
+    console.error('Error registering device:', error)
+    res.status(500).json({ error: error.message || 'Failed to register device' })
+  }
+})
+
+// DELETE /api/devices/:id - Remove device from dashboard
+router.delete('/devices/:id', (req: Request, res: Response) => {
+  try {
+    const db = getDb()
+    const deviceId = req.params.id as string
+    db.prepare('DELETE FROM devices WHERE deviceId = ?').run(deviceId)
+    db.prepare('DELETE FROM device_history WHERE deviceId = ?').run(deviceId)
+    db.prepare('DELETE FROM alerts WHERE deviceId = ?').run(deviceId)
+    res.json({ success: true, message: `Device ${deviceId} deleted` })
+  } catch (error) {
+    console.error('Error deleting device:', error)
+    res.status(500).json({ error: 'Failed to delete device' })
+  }
+})
+
 // POST /api/devices/:id/offline - Mark device as offline
 router.post('/devices/:id/offline', (req: Request, res: Response) => {
   try {
