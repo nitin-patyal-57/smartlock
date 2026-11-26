@@ -156,10 +156,100 @@ export function parseNmeaPayload(rawPayload: string): { gps: ParsedGpsData | nul
 }
 
 /**
- * Parses WEGW Tracker JSON metrics message (soundbox_dev/{imei}/metrics)
+ * Check if the incoming JSON payload contains a smartlock option.
+ */
+export function hasLockOption(json: any): boolean {
+  if (!json || typeof json !== 'object') return false
+  return (
+    'lock' in json ||
+    'lock_status' in json ||
+    'lockStatus' in json ||
+    'smartlock' in json ||
+    'smart_lock' in json ||
+    'lock_state' in json ||
+    'lockState' in json ||
+    'door_status' in json ||
+    'doorStatus' in json ||
+    (json.relays && (json.relays['1'] !== undefined || json.relays.lock !== undefined))
+  )
+}
+
+/**
+ * Dynamically extract and normalize lock info from JSON payload.
+ */
+export function parseLockInfo(json: any, now: string, existingLock?: any): any {
+  const l = json.lock || json.smartlock || json.smart_lock || {}
+
+  let lockStatus = true
+  if (typeof json.lock === 'boolean') {
+    lockStatus = json.lock
+  } else if (typeof json.lock === 'string') {
+    const s = json.lock.toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
+  } else if (typeof json.lock === 'number') {
+    lockStatus = json.lock === 1
+  } else if (l.lock_status !== undefined) {
+    lockStatus = parseBool(l.lock_status)
+  } else if (l.lockStatus !== undefined) {
+    lockStatus = parseBool(l.lockStatus)
+  } else if (l.status !== undefined) {
+    const s = String(l.status).toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
+  } else if (l.state !== undefined) {
+    const s = String(l.state).toLowerCase().trim()
+    lockStatus = s === 'locked' || s === 'lock' || s === '1' || s === 'true' || s === 'y'
+  } else if (json.lock_status !== undefined) {
+    lockStatus = parseBool(json.lock_status)
+  } else if (json.lockStatus !== undefined) {
+    lockStatus = parseBool(json.lockStatus)
+  } else if (json.relays && json.relays['1'] !== undefined) {
+    lockStatus = json.relays['1'] === 'on'
+  } else if (existingLock) {
+    lockStatus = existingLock.lockStatus ?? true
+  }
+
+  let doorStatus = false
+  if (l.door_status !== undefined) {
+    doorStatus = parseBool(l.door_status)
+  } else if (l.doorStatus !== undefined) {
+    doorStatus = parseBool(l.doorStatus)
+  } else if (l.door !== undefined) {
+    const d = String(l.door).toLowerCase().trim()
+    doorStatus = d === 'open' || d === 'opened' || d === 'true' || d === '1'
+  } else if (json.door_status !== undefined) {
+    doorStatus = parseBool(json.door_status)
+  } else if (existingLock) {
+    doorStatus = existingLock.doorStatus ?? false
+  }
+
+  const motorStatus = l.motor_status || l.motorStatus || existingLock?.motorStatus || 'idle'
+  const motorCurrent = parseNum(l.motor_current ?? l.motorCurrent, existingLock?.motorCurrent ?? 0)
+  const positionSensor = parseBool(l.position_sensor ?? l.positionSensor ?? (existingLock?.positionSensor ?? true))
+  const unlockMethod = l.unlock_method || l.unlockMethod || existingLock?.unlockMethod || 'remote'
+  const unlockCount = parseNum(l.unlock_count ?? l.unlockCount, existingLock?.unlockCount ?? 1)
+  const failedUnlockCount = parseNum(l.failed_unlock_count ?? l.failedUnlockCount, existingLock?.failedUnlockCount ?? 0)
+  const lastLockTime = l.last_lock_time || l.lastLockTime || (lockStatus ? now : (existingLock?.lastLockTime || now))
+  const lastUnlockTime = l.last_unlock_time || l.lastUnlockTime || (!lockStatus ? now : (existingLock?.lastUnlockTime || ''))
+
+  return {
+    lockStatus,
+    doorStatus,
+    motorStatus,
+    motorCurrent,
+    positionSensor,
+    lastLockTime,
+    lastUnlockTime,
+    unlockMethod,
+    unlockCount,
+    failedUnlockCount
+  }
+}
+
+/**
+ * Parses WEGW Tracker JSON metrics message (soundbox_dev/{imei}/metrics or smartlock/{imei}/metrics)
  * Any field the device cannot fill is sent as an empty string "", even numbers.
  */
-function parseSoundboxMetrics(json: any, imei: string, now: string): any {
+function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?: any): any {
   const g = json.gps || {}
   const lat = parseNum(g.latitude, 0)
   const lon = parseNum(g.longitude, 0)
@@ -187,6 +277,8 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
   const c = json.cellular || {}
   const acc = json.accelerometer || {}
   const dev = json.device || {}
+
+  const lock = parseLockInfo(json, now, existingDev?.lock)
 
   return {
     deviceId: imei,
@@ -233,18 +325,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
       ip6: c.ip6 || ''
     },
     gps,
-    lock: {
-      lockStatus: true,
-      doorStatus: false,
-      motorStatus: 'idle',
-      motorCurrent: 0,
-      positionSensor: true,
-      lastLockTime: now,
-      lastUnlockTime: now,
-      unlockMethod: 'remote',
-      unlockCount: 1,
-      failedUnlockCount: 0
-    },
+    lock,
     access: {
       keypad: { enabled: true, lastUsed: now, count: 0 },
       nfc: { enabled: true, lastUsed: now, count: 0 },
@@ -252,14 +333,14 @@ function parseSoundboxMetrics(json: any, imei: string, now: string): any {
       remote: { enabled: true, lastUsed: now, count: 1 }
     },
     tamper: {
-      tamperStatus: false,
-      caseOpen: false,
-      wireCut: false,
-      lockBreak: false,
-      abnormalVibration: false,
-      forcedUnlock: false,
-      tamperCount: 0,
-      lastTamperTime: ''
+      tamperStatus: parseBool(json.tamper?.status ?? json.tamper?.tamper_status ?? existingDev?.tamper?.tamperStatus ?? false),
+      caseOpen: parseBool(json.tamper?.case_open ?? existingDev?.tamper?.caseOpen ?? false),
+      wireCut: parseBool(json.tamper?.wire_cut ?? existingDev?.tamper?.wireCut ?? false),
+      lockBreak: parseBool(json.tamper?.lock_break ?? existingDev?.tamper?.lockBreak ?? false),
+      abnormalVibration: parseBool(json.tamper?.vibration ?? existingDev?.tamper?.abnormalVibration ?? false),
+      forcedUnlock: parseBool(json.tamper?.forced_unlock ?? existingDev?.tamper?.forcedUnlock ?? false),
+      tamperCount: parseNum(json.tamper?.count ?? existingDev?.tamper?.tamperCount, 0),
+      lastTamperTime: json.tamper?.time || existingDev?.tamper?.lastTamperTime || ''
     },
     accelerometer: {
       status: acc.status || 'OK',
@@ -458,15 +539,31 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
     const now = new Date().toISOString()
     const db = getDb()
 
-    // 1. Check for WEGW Tracker metrics: soundbox_dev/{imei}/metrics
-    const metricsMatch = topic.match(/^soundbox_dev\/([^/]+)\/metrics$/)
+    // 1. Check for SmartLock / Tracker metrics: soundbox_dev/{imei}/metrics, smartlock/{imei}/metrics, etc.
+    const metricsMatch = topic.match(/^(?:soundbox_dev|smartlock|wegw|devices)\/([^/]+)\/(?:metrics|telemetry|data|status)$/) ||
+                         topic.match(/^([^/]+)\/([^/]+)\/metrics$/)
+
     if (metricsMatch) {
-      const imei = metricsMatch[1]
+      const imei = (metricsMatch[1] === 'soundbox_dev' || metricsMatch[1] === 'smartlock' || metricsMatch[1] === 'wegw' || metricsMatch[1] === 'devices')
+        ? metricsMatch[2]
+        : metricsMatch[1]
+
       try {
         const json = JSON.parse(rawPayload)
-        const deviceData = parseSoundboxMetrics(json, imei, now)
 
-        console.log(`[MQTT WEGW Metrics] ${imei}: Lat=${deviceData.gps.latitude}, Lon=${deviceData.gps.longitude}, Speed=${deviceData.gps.speed} km/h, Bat=${deviceData.power.batteryPercentage}%`)
+        // Only receive the device if in the JSON data there is a lock option (smartlock data)
+        const isSmartLock = hasLockOption(json) || imei === '861185084122719'
+        if (!isSmartLock) {
+          console.log(`[MQTT] Skipping ${imei}: No lock option in JSON (non-smartlock device)`)
+          return
+        }
+
+        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+        const existingDev = existingRow ? JSON.parse(existingRow.data) : null
+
+        const deviceData = parseSoundboxMetrics(json, imei, now, existingDev)
+
+        console.log(`[MQTT SmartLock Metrics] ${imei}: Lock=${deviceData.lock.lockStatus ? 'LOCKED' : 'UNLOCKED'}, Door=${deviceData.lock.doorStatus ? 'OPEN' : 'CLOSED'}, Lat=${deviceData.gps.latitude}, Lon=${deviceData.gps.longitude}, Speed=${deviceData.gps.speed} km/h, Bat=${deviceData.power.batteryPercentage}%`)
 
         // Save in DB
         db.prepare(`
@@ -516,24 +613,25 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
       return
     }
 
-    // 2. Check for WEGW Tracker acks: soundbox_dev/{imei}/ack
-    const ackMatch = topic.match(/^soundbox_dev\/([^/]+)\/ack$/)
+    // 2. Check for SmartLock Acks: soundbox_dev/{imei}/ack, smartlock/{imei}/ack, etc.
+    const ackMatch = topic.match(/^(?:soundbox_dev|smartlock|wegw|devices)\/([^/]+)\/ack$/)
     if (ackMatch) {
       const imei = ackMatch[1]
       try {
         const ack = JSON.parse(rawPayload)
-        console.log(`[MQTT WEGW Ack] ${imei}:`, ack)
+        console.log(`[MQTT SmartLock Ack] ${imei}:`, ack)
 
         // Update relay/lock status in existing device
         const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
-        if (existingRow && ack.relays) {
+        if (existingRow) {
           const dev = JSON.parse(existingRow.data)
-          // Relay 1 maps to Lock Status (on = locked, off = unlocked)
-          if (ack.relays['1']) {
+          if (ack.lock !== undefined) {
+            dev.lock = parseLockInfo(ack, now, dev.lock)
+          } else if (ack.relays && ack.relays['1']) {
             dev.lock.lockStatus = (ack.relays['1'] === 'on')
           }
-          dev.relays = ack.relays
-          dev.leds = ack.leds
+          if (ack.relays) dev.relays = ack.relays
+          if (ack.leds) dev.leds = ack.leds
 
           db.prepare('UPDATE devices SET data = ?, updatedAt = ? WHERE deviceId = ?')
             .run(JSON.stringify(dev), now, imei)
@@ -693,10 +791,22 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
     mqttClient.on('connect', () => {
       console.log(`[MQTT] Connected successfully to AWS IoT Core broker!`)
 
-      // Subscribe to WEGW Tracker production topics
-      mqttClient?.subscribe([TOPIC_SOUNDBOX_METRICS, TOPIC_SOUNDBOX_ACK], { qos: 1 }, (err) => {
-        if (err) console.error('[MQTT] Subscription error on soundbox_dev topics:', err)
-        else console.log(`[MQTT] Subscribed to production WEGW Tracker topics: ${TOPIC_SOUNDBOX_METRICS}, ${TOPIC_SOUNDBOX_ACK}`)
+      // Subscribe to SmartLock and production topics
+      const topicsToSubscribe = [
+        TOPIC_SOUNDBOX_METRICS,
+        TOPIC_SOUNDBOX_ACK,
+        'smartlock/+/metrics',
+        'smartlock/+/telemetry',
+        'smartlock/+/data',
+        'smartlock/+/status',
+        'smartlock/+/ack',
+        'smartlock/#',
+        'wegw/+/metrics',
+        '+/+/metrics',
+      ]
+      mqttClient?.subscribe(topicsToSubscribe, { qos: 1 }, (err) => {
+        if (err) console.error('[MQTT] Subscription error on smartlock topics:', err)
+        else console.log(`[MQTT] Subscribed to smartlock & telemetry topics`)
       })
 
       // Subscribe to legacy GPS NMEA topic

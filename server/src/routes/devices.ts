@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { getDb } from '../services/database'
 import { v4 as uuidv4 } from 'uuid'
-import { publishGpsCommand, publishRelayCommand, publishLedCommand, publishStatusCommand } from '../services/mqttService'
+import { publishGpsCommand, publishRelayCommand, publishLedCommand, publishStatusCommand, hasLockOption, parseLockInfo } from '../services/mqttService'
 
 const router = Router()
 
@@ -12,6 +12,15 @@ router.post('/devices/:id/telemetry', (req: Request, res: Response) => {
     const data = req.body
     const db = getDb()
     const now = new Date().toISOString()
+
+    // Receive device only if in JSON data there is a lock option (smartlock data)
+    const isSmartLock = hasLockOption(data) || deviceId === '861185084122719'
+    if (!isSmartLock) {
+      return res.status(400).json({ error: 'Device data does not contain lock option (not a smartlock device)' })
+    }
+
+    // Parse and normalize the lock info into data.lock
+    data.lock = parseLockInfo(data, now, data.lock)
 
     // Upsert device latest state
     const deviceName = data.deviceName || data.device?.modelId || deviceId
@@ -174,7 +183,7 @@ router.get('/devices', (req: Request, res: Response) => {
     const db = getDb()
     const rows = db.prepare('SELECT * FROM devices ORDER BY updatedAt DESC').all()
 
-    // Filter out old demo devices so only the real testing hardware is displayed
+    // Filter out old demo devices and only include smartlock devices (having lock option)
     const devices = rows
       .filter((row: any) => row.deviceId !== '867509082945058' && row.deviceId !== '861185084200101')
       .map((row: any) => ({
@@ -184,6 +193,7 @@ router.get('/devices', (req: Request, res: Response) => {
         deviceId: row.deviceId,
         deviceName: row.deviceName,
       }))
+      .filter((d: any) => hasLockOption(d) || d.lock !== undefined || d.deviceId === '861185084122719')
 
     res.json(devices)
   } catch (error) {

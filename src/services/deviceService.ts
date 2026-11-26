@@ -67,6 +67,22 @@ export const DEMO_DEVICE_IDS = new Set(['867509082945058', '861185084200101'])
 const STORAGE_CUSTOM_KEY = 'custom_smartlock_devices'
 const STORAGE_DELETED_KEY = 'deleted_smartlock_devices'
 
+export function hasLockOption(json: any): boolean {
+  if (!json || typeof json !== 'object') return false
+  return (
+    'lock' in json ||
+    'lock_status' in json ||
+    'lockStatus' in json ||
+    'smartlock' in json ||
+    'smart_lock' in json ||
+    'lock_state' in json ||
+    'lockState' in json ||
+    'door_status' in json ||
+    'doorStatus' in json ||
+    Boolean(json.relays && (json.relays['1'] !== undefined || json.relays.lock !== undefined))
+  )
+}
+
 export function isIgnoredDevice(id: string): boolean {
   if (!id) return true
   const clean = id.trim()
@@ -289,6 +305,7 @@ export const deviceService = {
   isIgnoredDevice,
   getDeletedDeviceIds,
   markDeviceDeleted,
+  hasLockOption,
 
   async getDevices(): Promise<SmartLockDevice[]> {
     const deleted = getDeletedDeviceIds()
@@ -305,7 +322,7 @@ export const deviceService = {
         const devices = await res.json()
         if (Array.isArray(devices)) {
           serverDevices = devices.filter(
-            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId)
+            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && (hasLockOption(d) || d.lock !== undefined || d.deviceId === '861185084122719')
           )
         }
       }

@@ -31,11 +31,20 @@ export function useDevices() {
       if (deviceService.isIgnoredDevice(deviceId) || deviceService.getDeletedDeviceIds().has(deviceId)) {
         return
       }
+      // If data is received, ensure it's smartlock data (contains lock option or is designated test device)
+      if (!deviceService.hasLockOption(data) && !data.lock && deviceId !== '861185084122719') {
+        return
+      }
       setDevices(prev => {
         const idx = prev.findIndex(d => d.deviceId === deviceId)
         if (idx >= 0) {
           const next = [...prev]
-          next[idx] = { ...next[idx], ...data, gps: { ...next[idx].gps, ...data.gps } }
+          next[idx] = { 
+            ...next[idx], 
+            ...data, 
+            gps: { ...next[idx].gps, ...data.gps },
+            lock: { ...next[idx].lock, ...(data.lock || {}) }
+          }
           return next
         }
         return [...prev, data as SmartLockDevice]
@@ -111,7 +120,12 @@ export function useDevice(id: string) {
     // Real-time WebSocket listener for single device
     const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
       if (deviceId === id) {
-        setDevice(prev => prev ? { ...prev, ...data, gps: { ...prev.gps, ...data.gps } } : data as SmartLockDevice)
+        setDevice(prev => prev ? { 
+          ...prev, 
+          ...data, 
+          gps: { ...prev.gps, ...data.gps },
+          lock: { ...prev.lock, ...(data.lock || {}) }
+        } : data as SmartLockDevice)
       }
     })
 

@@ -117,6 +117,17 @@ client.on('connect', () => {
         impact_count: 0,
         driving_score: ''
       },
+      lock: {
+        status: relays['1'] === 'on' ? 'locked' : 'unlocked',
+        lock_status: relays['1'] === 'on',
+        door_status: false,
+        motor_status: 'idle',
+        motor_current: 0,
+        position_sensor: true,
+        last_lock_time: nowIso,
+        last_unlock_time: '',
+        unlock_method: 'remote'
+      },
       rtc: nowIso
     }
 
