@@ -210,19 +210,29 @@ export default function SmartLocksPage() {
       {/* Device List or Grid */}
       {filtered.length === 0 ? (
         <EmptyState
-          icon={<SlidersHorizontal className="h-10 w-10 text-slate-400" />}
-          title="No smart locks match your filters"
-          description="Try clearing search or registering a new lock device."
+          icon={<Lock className="h-10 w-10 text-emerald-500/60" />}
+          title={devices.length === 0 ? "No smart locks registered yet" : "No smart locks match your filters"}
+          description={devices.length === 0 ? "Click '+ Add Lock' to register your device IMEI and stream live telemetry via MQTT." : "Try clearing search or registering a new lock device."}
           action={
-            <button
-              onClick={() => {
-                setSearch('')
-                setFilter('all')
-              }}
-              className="mt-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition"
-            >
-              Clear Search
-            </button>
+            devices.length === 0 ? (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="mt-2 flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 transition"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Lock</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setSearch('')
+                  setFilter('all')
+                }}
+                className="mt-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition"
+              >
+                Clear Search
+              </button>
+            )
           }
         />
       ) : view === 'grid' ? (

@@ -1,6 +1,5 @@
 import { config } from './config'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
-import { REAL_DEVICE_861185084122685 } from './realDevice'
 import { mockDevices, mockAlerts, mockLocationHistory, mockActivityEvents } from './mockData'
 import { database, ref, onValue, get, query, orderByChild, startAt, endAt, isFirebaseConfigured } from './firebase'
 
@@ -167,10 +166,6 @@ if (typeof window !== 'undefined') {
       if (Array.isArray(arr)) {
         const cleaned = arr
           .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && d.deviceId !== '867509082945058')
-          .map((d) => {
-            if (d.deviceId === '861185084122685') return REAL_DEVICE_861185084122685
-            return d
-          })
         localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(cleaned))
       }
     }
@@ -220,10 +215,6 @@ export function getCustomDevicesFromStorage(): SmartLockDevice[] {
         const deleted = getDeletedDeviceIds()
         return parsed
           .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && d.deviceId !== '867509082945058')
-          .map((d) => {
-            if (d.deviceId === '861185084122685') return REAL_DEVICE_861185084122685
-            return d
-          })
       }
     }
   } catch { }
@@ -247,33 +238,32 @@ export function saveCustomDeviceToStorage(device: SmartLockDevice) {
 }
 
 function createDefaultDevice(cleanImei: string, name?: string, model?: string): SmartLockDevice {
-  const now = new Date().toISOString()
-  const label = name?.trim() || `SmartLock-${cleanImei.slice(-4)} (WM_SB_1605)`
-  const modelId = model?.trim() || 'WM_SB_1605'
+  const label = name?.trim() || `SmartLock-${cleanImei.slice(-4)}`
+  const modelId = model?.trim() || 'GW1NS-4'
 
   return {
     deviceId: cleanImei,
     deviceName: label,
-    status: 'online',
-    lastSeen: now,
+    status: 'offline',
+    lastSeen: '',
     device: {
       imei: cleanImei,
       modelId,
       serialNumber: '',
-      appVersion: 'WM_BP_2.0.8',
-      sdkVersion: 'WM_SDK_C_260702',
+      appVersion: '',
+      sdkVersion: '',
       hardwareVersion: '',
       bootReason: '',
       uptime: 0,
     },
     power: {
-      batteryVoltage: 4.08,
-      batteryPercentage: 94,
+      batteryVoltage: 0,
+      batteryPercentage: 0,
       isCharging: false,
       isUsbConnected: false,
       isExternalPower: false,
       isLowBattery: false,
-      batteryMv: 4075,
+      batteryMv: 0,
       extPowerVoltage: '',
       usb: 'N',
       charging: '',
@@ -281,70 +271,70 @@ function createDefaultDevice(cleanImei: string, name?: string, model?: string): 
       lowBattery: '',
     },
     cellular: {
-      operator: 'JIO 4G',
-      networkType: 'LTE',
-      rssi: 73,
-      signalQuality: 5,
-      ip: '10.38.65.70',
-      imsi: '405867153266129',
-      mcc: '869',
-      mnc: '405',
-      cellId: '131860',
-      tac: '174',
-      band: '40',
-      rsrp: 35,
-      rsrq: 15,
+      operator: '',
+      networkType: '',
+      rssi: 0,
+      signalQuality: 0,
+      ip: '',
+      imsi: '',
+      mcc: '',
+      mnc: '',
+      cellId: '',
+      tac: '',
+      band: '',
+      rsrp: 0,
+      rsrq: 0,
       sinr: 0,
-      signal: 'EXCELLENT',
-      ip4: '10.38.65.70',
-      ip6: '254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18',
+      signal: 'OFFLINE',
+      ip4: '',
+      ip6: '',
     },
     gps: {
-      isFixed: true,
-      latitude: 30.704649,
-      longitude: 76.717873,
-      altitude: 315.5,
-      speed: 42.6,
-      heading: 128,
-      satellites: 14,
-      hdop: 0.9,
-      accuracy: 4.2,
-      lastFix: '2026-09-15T10:40:21Z',
-      lastLocation: 'Mohali, Punjab',
-      fixType: '3D',
-      status: 'FIXED',
+      isFixed: false,
+      latitude: 0,
+      longitude: 0,
+      altitude: 0,
+      speed: 0,
+      heading: 0,
+      satellites: 0,
+      hdop: 0,
+      accuracy: 0,
+      lastFix: '',
+      lastLocation: '',
+      fixType: '',
+      status: 'OFFLINE',
     },
     lock: {
-      lockStatus: true,
+      lockStatus: false,
       doorStatus: false,
-      motorStatus: 'OK',
-      motorCurrent: 420,
-      positionSensor: true,
-      lastLockTime: '2026-09-15T10:20:15Z',
-      lastUnlockTime: '2026-09-15T09:45:10Z',
-      unlockMethod: 'REMOTE',
-      unlockCount: 24,
-      failedUnlockCount: 2,
-      lockMotorStatus: 'OK',
-      motorCurrentMa: 420,
-      lockPositionSensor: 'LOCKED',
-      lastUnlockMethod: 'REMOTE',
-      lockStatusStr: 'LOCKED',
-      doorStatusStr: 'CLOSED',
+      motorStatus: 'idle',
+      motorCurrent: 0,
+      positionSensor: false,
+      lastLockTime: '',
+      lastUnlockTime: '',
+      unlockMethod: '',
+      unlockCount: 0,
+      failedUnlockCount: 0,
+      lockMotorStatus: 'idle',
+      motorCurrentMa: 0,
+      lockPositionSensor: 'UNKNOWN',
+      lastUnlockMethod: '',
+      lockStatusStr: 'UNKNOWN',
+      doorStatusStr: 'UNKNOWN',
     },
     access: {
       keypad: {
         status: 'OK',
         enabled: true,
         failedAttempts: 0,
-        lastAccess: '2026-09-15T08:30:12Z',
-        lastUsed: '2026-09-15T08:30:12Z',
-        count: 24,
+        lastAccess: '',
+        lastUsed: '',
+        count: 0,
       },
       nfc: { enabled: true, lastUsed: '', count: 0 },
       bluetooth: { enabled: true, lastUsed: '', count: 0 },
-      remote: { enabled: true, lastUsed: '2026-09-15T10:20:15Z', count: 24 },
-      rtc: '2026-11-17T14:12:23.433Z',
+      remote: { enabled: true, lastUsed: '', count: 0 },
+      rtc: '',
     },
     tamper: {
       tamperStatus: false,
@@ -357,38 +347,38 @@ function createDefaultDevice(cleanImei: string, name?: string, model?: string): 
       lastTamperTime: '',
     },
     accelerometer: {
-      motion: true,
-      x: 0.04,
-      y: -0.02,
-      z: 1.01,
+      motion: false,
+      x: 0,
+      y: 0,
+      z: 0,
       status: 'OK',
-      harshBraking: true,
-      harshAcceleration: true,
-      sharpTurn: true,
-      harshBrakingCount: 2,
-      harshAccelerationCount: 1,
-      sharpTurnCount: 3,
+      harshBraking: false,
+      harshAcceleration: false,
+      sharpTurn: false,
+      harshBrakingCount: 0,
+      harshAccelerationCount: 0,
+      sharpTurnCount: 0,
       impactCount: 0,
-      drivingScore: 91,
+      drivingScore: 100,
     },
     trip: {
-      vehicleStatus: 'moving',
-      tripStatus: true,
-      tripId: `TRIP-${cleanImei.slice(-4)}`,
-      distance: 12.4,
-      maximumSpeed: 45.2,
+      vehicleStatus: 'stationary',
+      tripStatus: false,
+      tripId: '',
+      distance: 0,
+      maximumSpeed: 0,
       overspeedCount: 0,
     },
     geofence: {
       status: 'inside',
-      geofenceId: 'GF-MOHALI',
+      geofenceId: '',
       violation: false,
-      lastEvent: 'enter',
+      lastEvent: '',
     },
     sensors: {
-      temperature: 28.0,
-      internalTemperature: 31.0,
-      humidity: 50,
+      temperature: 0,
+      internalTemperature: 0,
+      humidity: 0,
       hardwareSensorStatus: true,
     },
     security: {
@@ -400,18 +390,18 @@ function createDefaultDevice(cleanImei: string, name?: string, model?: string): 
       firmwareSignature: true,
     },
     memory: {
-      totalStorage: 16777216,
-      usedStorage: 5242880,
-      freeStorage: 11534336,
+      totalStorage: 0,
+      usedStorage: 0,
+      freeStorage: 0,
     },
     diagnostics: {
-      lastDiagnosticTime: '2026-09-15T10:40:21Z',
+      lastDiagnosticTime: '',
       errorCodes: [],
-      systemHealth: 'good',
+      systemHealth: 'unknown',
     },
     rtc: {
-      rtcTime: '2026-11-17T14:12:23.433Z',
-      rtcSynced: true,
+      rtcTime: '',
+      rtcSynced: false,
     },
   }
 }
@@ -481,26 +471,9 @@ export const deviceService = {
       }
     }
 
-    if (!deleted.has(REAL_DEVICE_861185084122685.deviceId)) {
-      const existing = deviceMap.get(REAL_DEVICE_861185084122685.deviceId)
-      if (!existing) {
-        deviceMap.set(REAL_DEVICE_861185084122685.deviceId, REAL_DEVICE_861185084122685)
-      }
-    }
-
     const list = Array.from(deviceMap.values())
       .filter((d) => !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && d.deviceId !== '867509082945058')
-      .map((d) => {
-        if (d.deviceId === REAL_DEVICE_861185084122685.deviceId) {
-          return {
-            ...REAL_DEVICE_861185084122685,
-            ...d,
-            deviceId: d.deviceId,
-            deviceName: d.deviceName || REAL_DEVICE_861185084122685.deviceName
-          }
-        }
-        return d
-      })
+
     return list.sort((a, b) => new Date(b.lastSeen || 0).getTime() - new Date(a.lastSeen || 0).getTime())
   },
 
@@ -540,10 +513,6 @@ export const deviceService = {
     const custom = getCustomDevicesFromStorage().find((d) => d.deviceId === id)
     if (custom) {
       return custom
-    }
-
-    if (id === REAL_DEVICE_861185084122685.deviceId && !getDeletedDeviceIds().has(id)) {
-      return REAL_DEVICE_861185084122685
     }
 
     return undefined

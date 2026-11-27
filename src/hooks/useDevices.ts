@@ -3,10 +3,9 @@ import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from
 import { deviceService } from '@/services/deviceService'
 import { wsService } from '@/services/websocket'
 import { useRefresh } from '@/context/RefreshContext'
-import { REAL_DEVICE_861185084122685 } from '@/services/realDevice'
 
 export function useDevices() {
-  const [devices, setDevices] = useState<SmartLockDevice[]>([REAL_DEVICE_861185084122685])
+  const [devices, setDevices] = useState<SmartLockDevice[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
@@ -106,12 +105,7 @@ export function useDevices() {
 }
 
 export function useDevice(id: string) {
-  const [device, setDevice] = useState<SmartLockDevice | undefined>(() => {
-    if (id === '861185084122685' && !deviceService.getDeletedDeviceIds().has(id)) {
-      return REAL_DEVICE_861185084122685
-    }
-    return undefined
-  })
+  const [device, setDevice] = useState<SmartLockDevice | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { refreshInterval, isAutoRefreshEnabled } = useRefresh()

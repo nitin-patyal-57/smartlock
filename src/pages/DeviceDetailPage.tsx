@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDevice } from '@/hooks/useDevices'
 import { deviceService } from '@/services/deviceService'
-import { REAL_DEVICE_861185084122685 } from '@/services/realDevice'
 import { DeviceLiveMapCard } from '@/components/map/DeviceLiveMapCard'
 import { isDeviceMoving } from '@/components/map/mapLayers'
 import Card from '@/components/ui/Card'
@@ -77,7 +76,7 @@ export default function DeviceDetailPage() {
   if (loading) return <LoadingSpinner message="Loading smartlock telemetry..." className="min-h-[60vh]" />
   if (!device) return <ErrorState message={error || 'SmartLock device not found or has been removed from the dashboard.'} onRetry={refetch} />
 
-  const base = (id === '861185084122685' || device?.deviceId === '861185084122685') ? REAL_DEVICE_861185084122685 : device
+  const base = device
   const activeDev = device
 
   const d = {

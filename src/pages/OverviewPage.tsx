@@ -180,60 +180,67 @@ export default function OverviewPage() {
 
       <Card padding="md">
         <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Device Overview</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {devices.map((device) => {
-            const isOnline = isDeviceOnline(device)
-            return (
-              <div
-                key={device.deviceId}
-                onClick={() => navigate(`/locks/${device.deviceId}`)}
-                className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 transition-all hover:shadow-md cursor-pointer dark:border-slate-700 dark:bg-slate-800"
-              >
-                <div className="relative flex-shrink-0">
-                  {isOnline ? (
-                    device.lock?.lockStatus ? (
-                      <Lock className="h-8 w-8 text-emerald-500" />
-                    ) : (
-                      <Unlock className="h-8 w-8 text-amber-500" />
-                    )
-                  ) : (
-                    <Lock className="h-8 w-8 text-slate-400" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {device.deviceName}
-                  </p>
-                  <p className="font-mono text-xs text-slate-400 truncate">
-                    {device.deviceId}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
+        {devices.length === 0 ? (
+          <div className="py-8 text-center text-slate-500">
+            <p className="text-sm font-medium">No smart locks registered yet.</p>
+            <p className="text-xs text-slate-400 mt-1">Go to "Smart Locks" and click "Add Lock" to register your device.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {devices.map((device) => {
+              const isOnline = isDeviceOnline(device)
+              return (
+                <div
+                  key={device.deviceId}
+                  onClick={() => navigate(`/locks/${device.deviceId}`)}
+                  className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 transition-all hover:shadow-md cursor-pointer dark:border-slate-700 dark:bg-slate-800"
+                >
+                  <div className="relative flex-shrink-0">
                     {isOnline ? (
-                      <>
-                        <BatteryIndicator level={device.power?.batteryPercentage ?? 0} size="sm" />
-                        <span className="text-xs text-slate-500">{device.power?.batteryPercentage ?? 0}%</span>
-                      </>
+                      device.lock?.lockStatus ? (
+                        <Lock className="h-8 w-8 text-emerald-500" />
+                      ) : (
+                        <Unlock className="h-8 w-8 text-amber-500" />
+                      )
                     ) : (
-                      <span className="text-xs text-slate-400 font-mono">N/A</span>
+                      <Lock className="h-8 w-8 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {device.deviceName}
+                    </p>
+                    <p className="font-mono text-xs text-slate-400 truncate">
+                      {device.deviceId}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      {isOnline ? (
+                        <>
+                          <BatteryIndicator level={device.power?.batteryPercentage ?? 0} size="sm" />
+                          <span className="text-xs text-slate-500">{device.power?.batteryPercentage ?? 0}%</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono">N/A</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        isOnline ? 'bg-emerald-500' : 'bg-red-500'
+                      }`}
+                    />
+                    {isOnline ? (
+                      <SignalIndicator rssi={device.cellular?.rssi ?? 0} signalQuality={device.cellular?.signalQuality ?? 0} size="sm" />
+                    ) : (
+                      <span className="text-[10px] text-slate-400">Offline</span>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      isOnline ? 'bg-emerald-500' : 'bg-red-500'
-                    }`}
-                  />
-                  {isOnline ? (
-                    <SignalIndicator rssi={device.cellular?.rssi ?? 0} signalQuality={device.cellular?.signalQuality ?? 0} size="sm" />
-                  ) : (
-                    <span className="text-[10px] text-slate-400">Offline</span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </Card>
 
       {criticalAlerts.length > 0 && (

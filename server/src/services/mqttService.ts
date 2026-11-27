@@ -773,55 +773,35 @@ export const GPS_TRACKER_IMEIS = new Set([
   '867787064208584',
 ])
 
+/**
+ * Exported function to dynamically subscribe to a device's MQTT topics
+ */
+export function subscribeToDeviceMqtt(imei: string) {
+  if (!mqttClient) return
+  const clean = imei.trim()
+  const topics = [
+    `soundbox_dev/${clean}/metrics`,
+    `soundbox_dev/${clean}/ack`,
+  ]
+  mqttClient.subscribe(topics, { qos: 1 }, (err) => {
+    if (err) {
+      console.error(`[MQTT] Failed to subscribe to ${clean}:`, err)
+    } else {
+      console.log(`[MQTT] Actively subscribed to new device ${clean} on MQTT:`, topics)
+    }
+  })
+}
+
 function seedInitialDevices() {
   try {
     const db = getDb()
-    // Remove older/stale devices, plain GPS trackers, and removed SmartLock-5058
-    try {
-      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '867787064208584', '867509082945058')").run()
-      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '867787064208584', '867509082945058')").run()
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '867787064208584', '867509082945058')").run()
-    } catch {}
-
-    // Ensure only active live device exists (861185084122685)
-    const targetImeis = ['861185084122685']
-    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-
-    for (const imei of targetImeis) {
-      const existing = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
-      const model = imei === '861185084122685' ? 'GW1NS-4' : 'WM_SB_1605'
-      const devName = imei === '861185084122685' ? `GW1NS-4 (${imei})` : `SmartLock-5058 (${model})`
-
-      if (!existing) {
-        const initialOfflineDev = {
-          deviceId: imei,
-          deviceName: devName,
-          status: 'offline',
-          lastSeen: '',
-          isSmartLock: true,
-          device: { imei, modelId: model },
-          power: {},
-          cellular: {},
-          gps: {},
-          lock: {},
-          access: {},
-          accelerometer: {}
-        }
-        db.prepare(`
-          INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(imei, devName, 'offline', '', JSON.stringify(initialOfflineDev), new Date().toISOString())
-        console.log(`[MQTT] Initialized ${devName} as offline`)
-      } else {
-        // If inactive for > 2 minutes, enforce offline status
-        if (!existing.lastSeen || existing.lastSeen < cutoff) {
-          db.prepare("UPDATE devices SET status = 'offline' WHERE deviceId = ?").run(imei)
-          console.log(`[MQTT] Device ${imei} is currently offline (awaiting MQTT connection)`)
-        }
-      }
-    }
+    // Clear all older devices, history, and alerts from server DB - clean slate
+    db.prepare('DELETE FROM alerts').run()
+    db.prepare('DELETE FROM device_history').run()
+    db.prepare('DELETE FROM devices').run()
+    console.log('[MQTT] Server DB cleared - ready for user to add devices and stream via MQTT')
   } catch (err) {
-    console.error('[MQTT] Error initializing devices:', err)
+    console.error('[MQTT] Error initializing/clearing devices:', err)
   }
 }
 
@@ -888,6 +868,15 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
         if (err) console.error('[MQTT] Subscription error on soundbox topics:', err)
         else console.log(`[MQTT] Subscribed successfully to soundbox_dev topics:`, topicsToSubscribe)
       })
+
+      // Dynamically subscribe to any registered devices currently in the DB
+      try {
+        const db = getDb()
+        const rows = db.prepare('SELECT deviceId FROM devices').all() as { deviceId: string }[]
+        for (const row of rows) {
+          subscribeToDeviceMqtt(row.deviceId)
+        }
+      } catch {}
     })
 
     mqttClient.on('message', (topic, payload) => {
