@@ -157,24 +157,16 @@ export function clearAllLocalData() {
   } catch { }
 }
 
-// Auto-purge stale demo entries and removed devices on load
+// One-time clear of legacy cached devices from localStorage to guarantee 100% sync with cleared server DB
 if (typeof window !== 'undefined') {
   try {
-    const raw = localStorage.getItem(STORAGE_CUSTOM_KEY)
-    if (raw) {
-      const arr = JSON.parse(raw)
-      if (Array.isArray(arr)) {
-        const cleaned = arr
-          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && d.deviceId !== '867509082945058')
-        localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(cleaned))
-      }
+    const SYNC_CLEARED_KEY = 'smartlock_clean_state_v4'
+    if (!localStorage.getItem(SYNC_CLEARED_KEY)) {
+      localStorage.removeItem(STORAGE_CUSTOM_KEY)
+      localStorage.removeItem(STORAGE_DELETED_KEY)
+      localStorage.removeItem('walnut_imei')
+      localStorage.setItem(SYNC_CLEARED_KEY, 'true')
     }
-    // Guarantee 867509082945058 is marked as deleted so it never resurrects
-    const deletedRaw = localStorage.getItem(STORAGE_DELETED_KEY)
-    const delArr = deletedRaw ? JSON.parse(deletedRaw) : []
-    const delSet = new Set<string>(Array.isArray(delArr) ? delArr : [])
-    delSet.add('867509082945058')
-    localStorage.setItem(STORAGE_DELETED_KEY, JSON.stringify(Array.from(delSet)))
   } catch { }
 }
 
