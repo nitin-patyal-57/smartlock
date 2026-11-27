@@ -348,8 +348,8 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
       serialNumber: dev.serial_no || `SN-${imei.slice(-6)}`,
       appVersion: dev.app_v || 'WM_BP_2.0.8',
       sdkVersion: dev.sdk_v || 'WM_SDK_C_260702',
-      hardwareVersion: dev.hw_v || 'Z636_V1',
-      bootReason: dev.boot_reason || 'power on',
+      hardwareVersion: dev.hw_v || '',
+      bootReason: dev.boot_reason || '',
       uptime: parseNum(dev.uptime_sec, 0)
     },
     power: {

@@ -29,9 +29,9 @@ const client = mqtt.connect(AWS_IOT_ENDPOINT, {
 })
 
 let t = 0
-const baseLat = 30.657035
-const baseLon = 76.729596
-let speed = 0
+const baseLat = 30.704649
+const baseLon = 76.717873
+let speed = 42.6
 let uptime = 389
 
 const relays: Record<string, string> = { '1': 'off', '2': 'off' }

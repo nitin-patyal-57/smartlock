@@ -184,7 +184,9 @@ export function getDeletedDeviceIds(): Set<string> {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_DELETED_KEY) : null
     if (raw) {
       const arr = JSON.parse(raw)
-      return new Set([...arr])
+      const set = new Set<string>([...arr])
+      set.delete('867509082945058')
+      return set
     }
   } catch {}
   return new Set()
