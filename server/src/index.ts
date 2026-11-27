@@ -5,33 +5,25 @@ import fs from 'fs'
 import { createServer } from 'http'
 import { WebSocketServer } from 'ws'
 import { initDatabase } from './services/database'
-import deviceRoutes from './routes/devices'
-import alertRoutes from './routes/alerts'
-import activityRoutes from './routes/activity'
 import { broadcast, addClient } from './services/websocket'
 import { initMqttService, getMqttStatus } from './services/mqttService'
 
 const app = express()
 const server = createServer(app)
-const wss = new WebSocketServer({ server, path: '/ws' })
+// Dashboard <-> server traffic is WebSocket-only; keep frames small.
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 256 * 1024 })
 
 // Middleware
 app.use(cors({
-  origin: true, // Allow all origins (Vercel, Firebase, localhost, etc.)
+  origin: true, // Allow all origins (Render, Vercel, localhost, etc.)
   credentials: true
 }))
-app.use(express.json({ limit: '50mb' }))
 
 // Serve static frontend assets from public/
 const publicDir = path.join(__dirname, '../public')
 app.use(express.static(publicDir))
 
-// API Routes
-app.use('/api', deviceRoutes)
-app.use('/api', alertRoutes)
-app.use('/api', activityRoutes)
-
-// Health check
+// Health check (ops only - the dashboard itself talks exclusively over /ws)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -51,14 +43,10 @@ app.get('*', (req, res, next) => {
     res.sendFile(indexPath)
   } else {
     res.json({
-      service: 'SmartLock MQTT Backend API',
+      service: 'SmartLock MQTT Bridge',
       status: 'online',
       mqtt: getMqttStatus(),
-      endpoints: {
-        devices: '/api/devices',
-        health: '/api/health',
-        websocket: '/ws'
-      }
+      websocket: '/ws'
     })
   }
 })
@@ -68,9 +56,6 @@ wss.on('connection', (ws) => {
   console.log('WebSocket client connected')
   addClient(ws)
 })
-
-// Make broadcast available to routes
-app.set('broadcast', broadcast)
 
 // Initialize database and start server
 const PORT = process.env.PORT || 3001
@@ -82,7 +67,7 @@ initDatabase().then(() => {
   server.listen(PORT, () => {
     console.log(`SmartLock Server running on port ${PORT}`)
     console.log(`Dashboard UI: http://localhost:${PORT}`)
-    console.log(`API Health: http://localhost:${PORT}/api/health`)
+    console.log(`Health: http://localhost:${PORT}/api/health`)
     console.log(`WebSocket server on ws://localhost:${PORT}/ws`)
   })
 }).catch((err) => {

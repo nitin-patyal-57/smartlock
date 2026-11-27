@@ -63,7 +63,7 @@ export default function DeviceDetailPage() {
 
   const handleQueryStatus = async () => {
     setActionStatus('Requesting telemetry query via MQTT...')
-    const targetId = id || (device?.deviceId || '861185084122685')
+    const targetId = id || device?.deviceId || ''
     const res = await deviceService.queryDeviceStatus(targetId)
     if (res.success) {
       setActionStatus('Status query sent! Telemetry refreshed.')

@@ -69,7 +69,7 @@ export default function SettingsPage() {
   const [clearSuccess, setClearSuccess] = useState(false)
 
   const handleClearAllDevices = async () => {
-    if (!window.confirm('Are you sure you want to clear all devices and reset the local/server database?')) return
+    if (!window.confirm('Remove ALL smart locks from the dashboard and wipe their history, alerts and activity on the server?')) return
     setClearingDb(true)
     try {
       await deviceService.clearAllDevices()
@@ -77,8 +77,9 @@ export default function SettingsPage() {
       setTimeout(() => {
         window.location.reload()
       }, 700)
-    } catch {
+    } catch (err) {
       setClearingDb(false)
+      window.alert(`Could not clear locks: ${err instanceof Error ? err.message : 'unknown error'}`)
     }
   }
 
@@ -326,7 +327,7 @@ export default function SettingsPage() {
             ) : (
               <>
                 <Trash2 className="h-4 w-4" />
-                Clear Database & Reset All Devices
+                Remove All Locks & Reset
               </>
             )}
           </button>

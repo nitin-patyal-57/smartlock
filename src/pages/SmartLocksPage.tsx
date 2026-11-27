@@ -92,6 +92,8 @@ export default function SmartLocksPage() {
     setDeletingId(device.deviceId)
     try {
       await deleteDevice(device.deviceId)
+    } catch (err) {
+      window.alert(`Could not remove the lock: ${err instanceof Error ? err.message : 'unknown error'}`)
     } finally {
       setDeletingId(null)
     }
@@ -99,12 +101,15 @@ export default function SmartLocksPage() {
 
   const handleClearAll = async () => {
     const confirmClear = window.confirm(
-      'Are you sure you want to clear all older devices, dummy data, and history? The dashboard will be completely reset and ready for your new live device.'
+      'Remove ALL smart locks from the dashboard? Their MQTT subscriptions, history, alerts and activity will be deleted.'
     )
     if (!confirmClear) return
 
-    await deviceService.clearAllDevices()
-    refetch()
+    try {
+      await deviceService.clearAllDevices()
+    } catch (err) {
+      window.alert(`Could not clear locks: ${err instanceof Error ? err.message : 'unknown error'}`)
+    }
   }
 
   if (loading) return <LoadingSpinner message="Loading smart locks..." className="min-h-[60vh]" />
@@ -140,7 +145,7 @@ export default function SmartLocksPage() {
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 shadow-xs hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>Clear Older Data</span>
+            <span>Remove All Locks</span>
           </button>
 
           <button
