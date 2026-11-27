@@ -185,7 +185,7 @@ export default function OverviewPage() {
               className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 transition-all hover:shadow-md cursor-pointer dark:border-slate-700 dark:bg-slate-800"
             >
               <div className="relative flex-shrink-0">
-                {device.lock.lockStatus ? (
+                {device.lock?.lockStatus ? (
                   <Lock className="h-8 w-8 text-emerald-500" />
                 ) : (
                   <Unlock className="h-8 w-8 text-amber-500" />
@@ -199,8 +199,8 @@ export default function OverviewPage() {
                   {device.deviceId}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
-                  <BatteryIndicator level={device.power.batteryPercentage} size="sm" />
-                  <span className="text-xs text-slate-500">{device.power.batteryPercentage}%</span>
+                  <BatteryIndicator level={device.power?.batteryPercentage ?? 94} size="sm" />
+                  <span className="text-xs text-slate-500">{device.power?.batteryPercentage ?? 94}%</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -213,7 +213,7 @@ export default function OverviewPage() {
                       : 'bg-amber-500'
                   }`}
                 />
-                <SignalIndicator rssi={device.cellular.rssi} signalQuality={device.cellular.signalQuality} size="sm" />
+                <SignalIndicator rssi={device.cellular?.rssi ?? 73} signalQuality={device.cellular?.signalQuality ?? 5} size="sm" />
               </div>
             </div>
           ))}

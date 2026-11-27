@@ -185,6 +185,7 @@ const GPS_TRACKER_IMEIS = new Set([
   '861185084122719', // Third card: GPS Tracker confirmed by user
   '861185084200101',
   '861185084188827',
+  '867787064208584',
 ])
 
 // GET /api/devices - Get all devices (latest state)

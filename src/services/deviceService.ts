@@ -68,6 +68,7 @@ export const DEMO_DEVICE_IDS = new Set([
   '861185084122719', // GPS Tracker confirmed by user (third card)
   '861185084200101',
   '861185084188827',
+  '867787064208584',
   'SL-001',
   'SL-002',
   'SL-003',
@@ -87,6 +88,15 @@ const STORAGE_DELETED_KEY = 'deleted_smartlock_devices'
  */
 export function hasLockOption(json: any): boolean {
   if (!json || typeof json !== 'object') return false
+
+  // Reject known plain GPS tracker models
+  if (
+    json.device?.modelId === 'GW1NS-4' ||
+    json.model_id === 'GW1NS-4' ||
+    json.modelId === 'GW1NS-4'
+  ) {
+    return false
+  }
 
   // Explicit type declaration
   if (
@@ -141,6 +151,7 @@ export function isIgnoredDevice(id: string): boolean {
     clean === '861185084122719' || // Third card: GPS Tracker confirmed by user
     clean === '861185084200101' || // GPS Tracker
     clean === '861185084188827' || // Old dummy
+    clean === '867787064208584' || // Old dummy GPS tracker from user screenshot
     clean.startsWith('SL-') ||
     DEMO_DEVICE_IDS.has(clean)
   ) {
@@ -472,22 +483,21 @@ export const deviceService = {
     }
 
     if (!deleted.has(REAL_DEVICE_867509082945058.deviceId)) {
-      const existing = deviceMap.get(REAL_DEVICE_867509082945058.deviceId)
-      if (!existing || existing.device?.modelId === 'GW1NS-4') {
-        deviceMap.set(REAL_DEVICE_867509082945058.deviceId, REAL_DEVICE_867509082945058)
-      }
+      deviceMap.set(REAL_DEVICE_867509082945058.deviceId, REAL_DEVICE_867509082945058)
     }
 
-    const list = Array.from(deviceMap.values()).map((d) => {
-      if (d.deviceId === REAL_DEVICE_867509082945058.deviceId || d.device?.modelId === 'GW1NS-4') {
-        return {
-          ...REAL_DEVICE_867509082945058,
-          deviceId: d.deviceId,
-          deviceName: d.deviceName?.includes('GW1NS-4') ? `SmartLock-${d.deviceId.slice(-4)} (WM_SB_1605)` : d.deviceName
+    const list = Array.from(deviceMap.values())
+      .filter((d) => !isIgnoredDevice(d.deviceId) && d.device?.modelId !== 'GW1NS-4')
+      .map((d) => {
+        if (d.deviceId === REAL_DEVICE_867509082945058.deviceId) {
+          return {
+            ...REAL_DEVICE_867509082945058,
+            deviceId: d.deviceId,
+            deviceName: d.deviceName || REAL_DEVICE_867509082945058.deviceName
+          }
         }
-      }
-      return d
-    })
+        return d
+      })
     return list.sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
   },
 

@@ -771,6 +771,7 @@ export const GPS_TRACKER_IMEIS = new Set([
   '861185084122719', // Third card: WEGW GPS Tracker
   '861185084200101',
   '861185084188827',
+  '867787064208584',
 ])
 
 function seedInitialDevices() {
@@ -778,9 +779,9 @@ function seedInitialDevices() {
     const db = getDb()
     // Remove older/stale devices and plain GPS trackers
     try {
-      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827')").run()
-      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827')").run()
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827')").run()
+      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
+      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
     } catch {}
 
     // Seed the user's SmartLock-5058 (867509082945058)
