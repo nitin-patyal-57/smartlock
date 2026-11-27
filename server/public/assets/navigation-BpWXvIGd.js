@@ -1,1 +1,0 @@
-import{u as e}from"./helpers-DTxo-SJ6.js";var t={name:`gauge`,size:24,node:[[`path`,{d:`m12 14 4-4`,key:`9kzdfg`}],[`path`,{d:`M3.34 19a10 10 0 1 1 17.32 0`,key:`19p75a`}]]};t.node;var n=e(t),r={name:`navigation`,size:24,node:[[`polygon`,{points:`3 11 22 2 13 21 11 13 3 11`,key:`1ltx0t`}]]};r.node;var i=e(r);export{n,i as t};

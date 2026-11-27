@@ -7,6 +7,9 @@ const IMEI = process.argv[2] || '867509082945058'
 const METRICS_TOPIC = `soundbox_dev/${IMEI}/metrics`
 const COMMAND_TOPIC = `soundbox_dev/${IMEI}/command`
 const ACK_TOPIC = `soundbox_dev/${IMEI}/ack`
+const LOCK_CMD_TOPIC = `soundbox_dev/${IMEI}/lock/cmd`
+const LOCK_ACK_TOPIC = `soundbox_dev/${IMEI}/lock/ack`
+const STATUS_TOPIC = `soundbox_dev/${IMEI}/status`
 
 console.log('='.repeat(65))
 console.log('WEGW Tracker — Device Simulator (Specification 2026-11-23)')
@@ -15,6 +18,9 @@ console.log(`Device IMEI   : ${IMEI}`)
 console.log(`Metrics Topic : ${METRICS_TOPIC} (every 2s)`)
 console.log(`Command Topic : ${COMMAND_TOPIC}`)
 console.log(`Ack Topic     : ${ACK_TOPIC}`)
+console.log(`Lock Cmd Topic: ${LOCK_CMD_TOPIC}`)
+console.log(`Lock Ack Topic: ${LOCK_ACK_TOPIC}`)
+console.log(`Status Topic  : ${STATUS_TOPIC}`)
 console.log('='.repeat(65))
 
 const clientId = `wegw-${IMEI}`
@@ -36,12 +42,21 @@ let uptime = 389
 
 const relays: Record<string, string> = { '1': 'off', '2': 'off' }
 const leds: Record<string, string> = { red: 'auto', green: 'auto', blue: 'auto' }
+let lockStatus: 'LOCKED' | 'UNLOCKED' = 'LOCKED'
 
 client.on('connect', () => {
   console.log('[Simulator] Connected to AWS IoT Core!')
-  client.subscribe(COMMAND_TOPIC, { qos: 1 }, (err) => {
+
+  // Publish retained online status as per SmartLock MQTT specification Topic 4
+  client.publish(STATUS_TOPIC, JSON.stringify({ online: true }), { qos: 1, retain: true }, (err) => {
+    if (err) console.error('[Simulator] Status publish error:', err)
+    else console.log(`[Simulator] Published online status to ${STATUS_TOPIC}`)
+  })
+
+  // Subscribe to commands and lock control topic
+  client.subscribe([COMMAND_TOPIC, LOCK_CMD_TOPIC], { qos: 1 }, (err) => {
     if (err) console.error('[Simulator] Subscribe error:', err)
-    else console.log(`[Simulator] Subscribed to commands on ${COMMAND_TOPIC}`)
+    else console.log(`[Simulator] Subscribed to ${COMMAND_TOPIC} and ${LOCK_CMD_TOPIC}`)
   })
 
   // Transmit metrics every 2s as specified
@@ -106,11 +121,11 @@ client.on('connect', () => {
         location: 'Mohali, Punjab'
       },
       lock: {
-        lock_status: relays['1'] === 'off' ? 'LOCKED' : 'UNLOCKED',
+        lock_status: lockStatus,
         door_status: 'CLOSED',
         lock_motor_status: 'OK',
         motor_current_ma: 420,
-        lock_position_sensor: 'LOCKED',
+        lock_position_sensor: lockStatus,
         last_lock_time: '2026-09-15T10:20:15Z',
         last_unlock_time: '2026-09-15T09:45:10Z',
         last_unlock_method: 'REMOTE',
@@ -162,6 +177,29 @@ client.on('message', (topic, payload) => {
   try {
     const raw = payload.toString('utf-8')
     console.log(`[Command Received] << ${topic}: ${raw}`)
+
+    // Handle SmartLock Lock/Unlock Command as per Specification Topic 2 & 3
+    if (topic === LOCK_CMD_TOPIC) {
+      const lockCmd = JSON.parse(raw)
+      const command = String(lockCmd.command || '').toUpperCase()
+      const pin = String(lockCmd.pin || '').trim()
+
+      console.log(`[Simulator Lock Cmd] command: ${command}, pin: ${pin}`)
+
+      // Verification of PIN (Default factory PIN is 1234)
+      if (pin === '1234') {
+        lockStatus = command === 'UNLOCK' ? 'UNLOCKED' : 'LOCKED'
+        const ack = { command, status: 'SUCCESS' }
+        client.publish(LOCK_ACK_TOPIC, JSON.stringify(ack), { qos: 1, retain: false })
+        console.log(`[Simulator Lock Ack Sent] >> ${LOCK_ACK_TOPIC}:`, ack)
+      } else {
+        const ack = { command, status: 'FAILED', reason: 'WRONG_PIN' }
+        client.publish(LOCK_ACK_TOPIC, JSON.stringify(ack), { qos: 1, retain: false })
+        console.log(`[Simulator Lock Ack Sent] >> ${LOCK_ACK_TOPIC}:`, ack)
+      }
+      return
+    }
+
     const cmd = JSON.parse(raw)
     const ack: any = { id: cmd.id || '', cmd: cmd.cmd || '' }
 

@@ -4,6 +4,7 @@ import {
   publishLedCommand,
   publishRelayCommand,
   publishStatusCommand,
+  sendLockCommandWithAck,
   subscribeToDeviceMqtt,
   unsubscribeFromDeviceMqtt,
 } from './mqttService'
@@ -90,6 +91,26 @@ const handlers: Record<string, Handler> = {
     ids.forEach(unsubscribeFromDeviceMqtt)
     broadcast('devices_cleared', { count: ids.length })
     return { count: ids.length }
+  },
+
+  async lock_control(payload) {
+    const deviceId = requireRegistered(payload?.deviceId)
+    const command = String(payload?.command || '').toUpperCase()
+    if (command !== 'UNLOCK' && command !== 'LOCK') {
+      throw new Error('command must be UNLOCK or LOCK')
+    }
+    const pin = String(payload?.pin || '').trim()
+    if (!pin) {
+      throw new Error('Security PIN is required')
+    }
+    const res = await sendLockCommandWithAck(deviceId, command as 'UNLOCK' | 'LOCK', pin, 10000)
+    if (!res.success) {
+      const err = new Error(res.error || 'Lock command failed')
+      ;(err as any).reason = res.reason
+      throw err
+    }
+    recordRemote(deviceId, `Lock ${command.toLowerCase()}ed with PIN`, { command, status: 'SUCCESS' })
+    return { deviceId, command, success: true, ack: res.ack }
   },
 
   async relay(payload) {

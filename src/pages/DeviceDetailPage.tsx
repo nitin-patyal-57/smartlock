@@ -22,6 +22,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Key,
+  Eye,
+  EyeOff,
+  X,
+  Loader2,
 } from 'lucide-react'
 import {
   formatTimeSafe,
@@ -60,6 +64,59 @@ export default function DeviceDetailPage() {
   const navigate = useNavigate()
   const { device, loading, error, refetch } = useDevice(id || '')
   const [actionStatus, setActionStatus] = useState<string | null>(null)
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false)
+  const [targetAction, setTargetAction] = useState<'UNLOCK' | 'LOCK'>('UNLOCK')
+  const [pin, setPin] = useState('')
+  const [showPin, setShowPin] = useState(false)
+  const [submittingPin, setSubmittingPin] = useState(false)
+  const [pinFeedback, setPinFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [optimisticLockStatus, setOptimisticLockStatus] = useState<boolean | null>(null)
+
+  const handleOpenPinModal = (action: 'UNLOCK' | 'LOCK') => {
+    setTargetAction(action)
+    setPin('')
+    setShowPin(false)
+    setPinFeedback(null)
+    setIsPinModalOpen(true)
+  }
+
+  const handleSubmitLockCommand = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pin.trim()) {
+      setPinFeedback({ type: 'error', message: 'Please enter the security PIN or password.' })
+      return
+    }
+
+    setSubmittingPin(true)
+    setPinFeedback(null)
+
+    const targetId = id || device?.deviceId || ''
+    const res = await deviceService.sendLockControl(targetId, targetAction, pin.trim())
+
+    if (res.success) {
+      const isUnlock = targetAction === 'UNLOCK'
+      setOptimisticLockStatus(!isUnlock)
+      setPinFeedback({
+        type: 'success',
+        message: `PIN verified! Command ${targetAction} confirmed by MQTT broker. Smart lock is now ${isUnlock ? 'UNLOCKED' : 'LOCKED'}.`
+      })
+      setTimeout(() => {
+        setIsPinModalOpen(false)
+        setSubmittingPin(false)
+        setPin('')
+        setPinFeedback(null)
+      }, 1500)
+    } else {
+      const reasonStr = res.reason === 'WRONG_PIN'
+        ? 'Wrong PIN! The smart lock rejected the entered password (WRONG_PIN).'
+        : (res.error || 'Lock command failed or timed out.')
+      setPinFeedback({
+        type: 'error',
+        message: reasonStr
+      })
+      setSubmittingPin(false)
+    }
+  }
 
   const handleQueryStatus = async () => {
     setActionStatus('Requesting telemetry query via MQTT...')
@@ -120,6 +177,13 @@ export default function DeviceDetailPage() {
       ...base.rtc,
       ...(typeof activeDev?.rtc === 'object' ? activeDev.rtc : {})
     }
+  }
+
+  // Apply optimistic lock status if recently updated via remote control
+  if (optimisticLockStatus !== null) {
+    if (!d.lock) (d as any).lock = {}
+    d.lock.lockStatus = optimisticLockStatus
+    d.lock.lockStatusStr = optimisticLockStatus ? 'LOCKED' : 'UNLOCKED'
   }
 
   // Authentic online/offline determination
@@ -228,6 +292,89 @@ export default function DeviceDetailPage() {
 
       {/* Live Map Card */}
       <DeviceLiveMapCard device={d as any} height="h-[460px]" />
+
+      {/* Remote Smart Lock Security Control Card */}
+      <Card padding="lg" className="border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div
+              className={`p-3.5 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
+                d.lock?.lockStatus
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/30'
+              }`}
+            >
+              {d.lock?.lockStatus ? (
+                <Lock className="h-8 w-8" />
+              ) : (
+                <Unlock className="h-8 w-8" />
+              )}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  Remote Smart Lock Control
+                </h3>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide uppercase border ${
+                    d.lock?.lockStatus
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                  }`}
+                >
+                  {d.lock?.lockStatus ? '● CURRENTLY LOCKED' : '○ CURRENTLY UNLOCKED'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+                {d.lock?.lockStatus
+                  ? 'The smart lock is currently securely LOCKED. Click "Unlock Device" below to enter the PIN password and verify via MQTT.'
+                  : 'The smart lock is currently UNLOCKED. Click "Lock Device" below to secure the lock and engage the latch via MQTT.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-400">
+                <span className="flex items-center gap-1 font-medium">
+                  Door Status:{' '}
+                  <strong className={d.lock?.doorStatus ? 'text-red-400' : 'text-slate-300'}>
+                    {d.lock?.doorStatus ? 'OPEN' : 'CLOSED'}
+                  </strong>
+                </span>
+                {d.lock?.lastUnlockTime && (
+                  <span className="flex items-center gap-1">
+                    Last Unlocked:{' '}
+                    <strong>{formatTimeSafe(d.lock.lastUnlockTime)}</strong> ({d.lock.lastUnlockMethod || 'REMOTE'})
+                  </span>
+                )}
+                {Boolean(d.lock?.failedUnlockCount) && (
+                  <span className="text-rose-400 font-medium">
+                    Failed Attempts: {d.lock.failedUnlockCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {d.lock?.lockStatus ? (
+              <button
+                type="button"
+                onClick={() => handleOpenPinModal('UNLOCK')}
+                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold px-6 py-3 text-sm shadow-lg shadow-amber-500/20 transition cursor-pointer"
+              >
+                <Unlock className="h-4 w-4" />
+                <span>Unlock Device</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenPinModal('LOCK')}
+                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold px-6 py-3 text-sm shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+              >
+                <Lock className="h-4 w-4" />
+                <span>Lock Device</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </Card>
 
       {/* Exact 6-Card Telemetry Grid Matching User Specification */}
       {/* When device is OFF, every section displays N/A (no demo data) */}
@@ -608,6 +755,156 @@ export default function DeviceDetailPage() {
           </div>
         </Card>
       </div>
+
+      {/* PIN Verification Modal */}
+      {isPinModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <button
+              onClick={() => {
+                if (!submittingPin) {
+                  setIsPinModalOpen(false)
+                  setPinFeedback(null)
+                }
+              }}
+              disabled={submittingPin}
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition disabled:opacity-50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                  targetAction === 'UNLOCK'
+                    ? 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
+                    : 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                }`}
+              >
+                {targetAction === 'UNLOCK' ? <Unlock className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  {targetAction === 'UNLOCK' ? 'Unlock Smart Lock' : 'Lock Smart Lock'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  IMEI: {d.deviceId} &middot; {d.deviceName}
+                </p>
+              </div>
+            </div>
+
+            {/* Protocol Specs Banner */}
+            <div className="mt-4 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 p-3 text-xs space-y-1">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>MQTT Command Topic:</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">
+                  soundbox_dev/{d.deviceId}/lock/cmd
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Command Action:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{targetAction}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Verification ACK:</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">
+                  soundbox_dev/{d.deviceId}/lock/ack
+                </span>
+              </div>
+            </div>
+
+            {pinFeedback && (
+              <div
+                className={`mt-4 flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-xs ${
+                  pinFeedback.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                }`}
+              >
+                {pinFeedback.type === 'success' ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                )}
+                <span>{pinFeedback.message}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitLockCommand} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Security PIN / Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPin ? 'text' : 'password'}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="Enter 4-digit PIN (e.g. 1234)"
+                    autoFocus
+                    disabled={submittingPin}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-10 text-sm font-mono tracking-widest text-slate-900 placeholder:tracking-normal placeholder:font-sans placeholder:text-slate-400 focus:border-primary-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-[11px] text-slate-400">
+                    The lock verifies this PIN on the MQTT broker before operating.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPin('1234')}
+                    className="text-[11px] font-semibold text-primary-500 hover:text-primary-600 underline"
+                  >
+                    Use Default PIN (1234)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPinModalOpen(false)
+                    setPinFeedback(null)
+                  }}
+                  disabled={submittingPin}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingPin || !pin.trim()}
+                  className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold transition disabled:opacity-50 ${
+                    targetAction === 'UNLOCK'
+                      ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'
+                  }`}
+                >
+                  {submittingPin ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Verifying via MQTT...</span>
+                    </>
+                  ) : (
+                    <>
+                      {targetAction === 'UNLOCK' ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                      <span>Confirm & {targetAction === 'UNLOCK' ? 'Unlock' : 'Lock'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

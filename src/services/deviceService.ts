@@ -75,4 +75,19 @@ export const deviceService = {
   queryDeviceStatus(deviceId: string): Promise<CommandResult> {
     return command('status_query', { deviceId })
   },
+
+  sendLockControl(
+    deviceId: string,
+    command: 'UNLOCK' | 'LOCK',
+    pin: string
+  ): Promise<CommandResult & { reason?: string; ack?: any }> {
+    return wsService
+      .request('lock_control', { deviceId, command, pin })
+      .then((res: any) => ({ success: true, ...res }))
+      .catch((err: any) => ({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+        reason: (err as any)?.reason,
+      }))
+  },
 }

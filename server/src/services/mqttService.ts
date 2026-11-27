@@ -15,7 +15,12 @@ const AWS_IOT_ENDPOINT = process.env.MQTT_BROKER_URL || 'mqtts://avj249ldc7joq-a
 // Only registered locks are subscribed (per-IMEI topics); there are no wildcard
 // subscriptions, so a removed lock can never re-register itself by publishing.
 const TOPIC_SOUNDBOX_CMD_PREFIX = 'soundbox_dev/'
-const deviceTopics = (imei: string) => [`soundbox_dev/${imei}/metrics`, `soundbox_dev/${imei}/ack`]
+const deviceTopics = (imei: string) => [
+  `soundbox_dev/${imei}/metrics`,
+  `soundbox_dev/${imei}/ack`,
+  `soundbox_dev/${imei}/lock/ack`,
+  `soundbox_dev/${imei}/status`,
+]
 
 // Legacy / diagnostic GNSS tool topics
 const TOPIC_LEGACY_GPS_CMD_PREFIX = 'wegw/'
@@ -513,7 +518,84 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
       return
     }
 
-    // 2. Acks: soundbox_dev/{imei}/ack
+    // 2a. SmartLock Lock/Unlock ACK: soundbox_dev/{imei}/lock/ack
+    const lockAckMatch = topic.match(/^soundbox_dev\/([^/]+)\/lock\/ack$/)
+    if (lockAckMatch) {
+      const imei = lockAckMatch[1]
+      try {
+        const ack = JSON.parse(rawPayload)
+        console.log(`[MQTT SmartLock Lock/Ack] ${imei}:`, ack)
+
+        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+        if (existingRow) {
+          const dev = JSON.parse(existingRow.data)
+          if (ack.status === 'SUCCESS') {
+            const isUnlock = String(ack.command || '').toUpperCase() === 'UNLOCK'
+            dev.lock.lockStatus = !isUnlock
+            dev.lock.lockStatusStr = isUnlock ? 'UNLOCKED' : 'LOCKED'
+            if (isUnlock) {
+              dev.lock.lastUnlockTime = now
+              dev.lock.lastUnlockMethod = 'REMOTE'
+              dev.lock.unlockCount = (dev.lock.unlockCount || 0) + 1
+            } else {
+              dev.lock.lastLockTime = now
+            }
+            dev.lastSeen = now
+
+            db.prepare('UPDATE devices SET data = ?, lastSeen = ?, updatedAt = ? WHERE deviceId = ?')
+              .run(JSON.stringify(dev), now, now, imei)
+
+            if (broadcastFn) {
+              broadcastFn('device_update', { deviceId: imei, data: getDevice(imei) ?? dev, timestamp: now })
+            }
+          } else if (ack.status === 'FAILED') {
+            if (dev.lock) {
+              dev.lock.failedUnlockCount = (dev.lock.failedUnlockCount || 0) + 1
+              db.prepare('UPDATE devices SET data = ?, updatedAt = ? WHERE deviceId = ?')
+                .run(JSON.stringify(dev), now, imei)
+            }
+          }
+
+          if (broadcastFn) {
+            broadcastFn('device_lock_ack', { deviceId: imei, ack, timestamp: now })
+          }
+        }
+
+        resolveLockAckWaiters(imei, ack)
+      } catch (e) {
+        console.error(`[MQTT] Failed to parse lock/ack from ${imei}:`, e)
+      }
+      return
+    }
+
+    // 2b. Status message: soundbox_dev/{imei}/status
+    const statusMatch = topic.match(/^soundbox_dev\/([^/]+)\/status$/)
+    if (statusMatch) {
+      const imei = statusMatch[1]
+      try {
+        const stat = JSON.parse(rawPayload)
+        console.log(`[MQTT SmartLock Status] ${imei}:`, stat)
+        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+        if (existingRow) {
+          const dev = JSON.parse(existingRow.data)
+          const isOnline = stat.online === true
+          dev.status = isOnline ? (dev.power?.isLowBattery ? 'warning' : 'online') : 'offline'
+          if (isOnline) {
+            dev.lastSeen = now
+          }
+          db.prepare('UPDATE devices SET status = ?, lastSeen = ?, data = ?, updatedAt = ? WHERE deviceId = ?')
+            .run(dev.status, dev.lastSeen || now, JSON.stringify(dev), now, imei)
+          if (broadcastFn) {
+            broadcastFn('device_update', { deviceId: imei, data: getDevice(imei) ?? dev, timestamp: now })
+          }
+        }
+      } catch (e) {
+        console.error(`[MQTT] Failed to parse status from ${imei}:`, e)
+      }
+      return
+    }
+
+    // 2c. Acks: soundbox_dev/{imei}/ack
     const ackMatch = topic.match(/^soundbox_dev\/([^/]+)\/ack$/)
     if (ackMatch) {
       const imei = ackMatch[1]
@@ -678,6 +760,101 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
   }
 
   return mqttClient
+}
+
+interface PendingLockAckWaiter {
+  command: 'UNLOCK' | 'LOCK'
+  resolve: (res: { success: boolean; error?: string; reason?: string; ack?: any }) => void
+  timer: NodeJS.Timeout
+}
+
+const lockAckWaiters = new Map<string, PendingLockAckWaiter[]>()
+
+function resolveLockAckWaiters(imei: string, ack: { command?: string; status?: string; reason?: string }) {
+  const waiters = lockAckWaiters.get(imei)
+  if (waiters && waiters.length > 0) {
+    const remaining: PendingLockAckWaiter[] = []
+    for (const w of waiters) {
+      if (!ack.command || String(ack.command).toUpperCase() === w.command) {
+        clearTimeout(w.timer)
+        if (ack.status === 'SUCCESS') {
+          w.resolve({ success: true, ack })
+        } else {
+          w.resolve({
+            success: false,
+            error: ack.reason ? `Lock rejected command (${ack.reason})` : 'Incorrect PIN or lock command failed',
+            reason: ack.reason || 'FAILED',
+            ack
+          })
+        }
+      } else {
+        remaining.push(w)
+      }
+    }
+    if (remaining.length > 0) {
+      lockAckWaiters.set(imei, remaining)
+    } else {
+      lockAckWaiters.delete(imei)
+    }
+  }
+}
+
+/**
+ * Send Lock/Unlock Command with PIN as per SmartLock MQTT specification:
+ * Topic: soundbox_dev/{imei}/lock/cmd
+ * Payload: {"command": "UNLOCK", "pin": "1234"} or {"command": "LOCK", "pin": "1234"}
+ * QoS: 1, retain: false
+ * Awaits ACK on soundbox_dev/{imei}/lock/ack:
+ * {"command": "UNLOCK", "status": "SUCCESS"} or {"command": "UNLOCK", "status": "FAILED", "reason": "WRONG_PIN"}
+ */
+export async function sendLockCommandWithAck(
+  imei: string,
+  command: 'UNLOCK' | 'LOCK',
+  pin: string,
+  timeoutMs = 10000
+): Promise<{ success: boolean; error?: string; reason?: string; ack?: any }> {
+  if (!mqttClient || !mqttClient.connected) {
+    return { success: false, error: 'MQTT broker is not connected' }
+  }
+
+  const cleanImei = normalizeImei(imei)
+  const cmd = command.toUpperCase() as 'UNLOCK' | 'LOCK'
+  const topic = `soundbox_dev/${cleanImei}/lock/cmd`
+  const payload = JSON.stringify({ command: cmd, pin: pin.trim() })
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      const list = lockAckWaiters.get(cleanImei) || []
+      lockAckWaiters.set(cleanImei, list.filter(w => w.timer !== timer))
+      resolve({
+        success: false,
+        error: 'Timeout waiting for device response on soundbox_dev/{imei}/lock/ack. Ensure the lock is powered on and connected.',
+        reason: 'TIMEOUT'
+      })
+    }, timeoutMs)
+
+    const waiter: PendingLockAckWaiter = {
+      command: cmd,
+      timer,
+      resolve
+    }
+
+    const currentWaiters = lockAckWaiters.get(cleanImei) || []
+    currentWaiters.push(waiter)
+    lockAckWaiters.set(cleanImei, currentWaiters)
+
+    mqttClient!.publish(topic, payload, { qos: 1, retain: false }, (err) => {
+      if (err) {
+        clearTimeout(timer)
+        const list = lockAckWaiters.get(cleanImei) || []
+        lockAckWaiters.set(cleanImei, list.filter(w => w !== waiter))
+        console.error(`[MQTT] Failed to publish lock command to ${topic}:`, err)
+        resolve({ success: false, error: `Failed to publish to MQTT: ${err.message}` })
+      } else {
+        console.log(`[MQTT] Published lock command to ${topic}: ${payload}`)
+      }
+    })
+  })
 }
 
 /**
