@@ -484,6 +484,10 @@ router.delete('/devices/:id', (req: Request, res: Response) => {
     db.prepare('DELETE FROM alerts WHERE deviceId = ?').run(deviceId)
     db.prepare('DELETE FROM device_history WHERE deviceId = ?').run(deviceId)
     db.prepare('DELETE FROM devices WHERE deviceId = ?').run(deviceId)
+    const broadcast = req.app.get('broadcast')
+    if (broadcast) {
+      broadcast('device_deleted', { deviceId })
+    }
     res.json({ success: true, message: `Device ${deviceId} deleted` })
   } catch (error) {
     console.error('Error deleting device:', error)

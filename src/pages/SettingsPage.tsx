@@ -65,7 +65,7 @@ export default function SettingsPage() {
   const [compactMode, setCompactMode] = useState(false)
   const [defaultMapView, setDefaultMapView] = useState('street')
   const [walnutImei, setWalnutImei] = useState(() => {
-    return (typeof window !== 'undefined' && localStorage.getItem('walnut_imei')) || import.meta.env.VITE_WALNUT_IMEI || '861185084122685,867509082945058'
+    return (typeof window !== 'undefined' && localStorage.getItem('walnut_imei')) || import.meta.env.VITE_WALNUT_IMEI || '861185084122685'
   })
   const [savedSuccess, setSavedSuccess] = useState(false)
 
@@ -261,7 +261,7 @@ export default function SettingsPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Target IMEI(s)</label>
             <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-              Enter one or multiple device IMEIs separated by commas (e.g. 861185084122685, 867509082945058)
+              Enter one or multiple device IMEIs separated by commas (e.g. 861185084122685)
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input

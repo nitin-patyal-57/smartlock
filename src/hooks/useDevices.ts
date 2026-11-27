@@ -3,10 +3,10 @@ import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from
 import { deviceService } from '@/services/deviceService'
 import { wsService } from '@/services/websocket'
 import { useRefresh } from '@/context/RefreshContext'
-import { REAL_DEVICE_867509082945058, REAL_DEVICE_861185084122685 } from '@/services/realDevice'
+import { REAL_DEVICE_861185084122685 } from '@/services/realDevice'
 
 export function useDevices() {
-  const [devices, setDevices] = useState<SmartLockDevice[]>([REAL_DEVICE_861185084122685, REAL_DEVICE_867509082945058])
+  const [devices, setDevices] = useState<SmartLockDevice[]>([REAL_DEVICE_861185084122685])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
@@ -29,7 +29,7 @@ export function useDevices() {
 
     // Real-time WebSocket listener: receives live MQTT pushes (every 1s)
     const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
-      if (deviceService.isIgnoredDevice(deviceId)) {
+      if (deviceService.isIgnoredDevice(deviceId) || deviceService.getDeletedDeviceIds().has(deviceId)) {
         return
       }
       // Strictly recognize and allow only genuine SmartLock devices (ignore plain GPS trackers)
@@ -52,8 +52,17 @@ export function useDevices() {
       })
     })
 
+    const onDeviceDeleted = (payload: any) => {
+      const deletedId = payload?.deviceId
+      if (deletedId) {
+        setDevices(prev => prev.filter(d => d.deviceId !== deletedId))
+      }
+    }
+    wsService.on('device_deleted', onDeviceDeleted)
+
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe()
+      wsService.off('device_deleted', onDeviceDeleted)
     }
   }, [fetchDevices])
 
@@ -98,11 +107,8 @@ export function useDevices() {
 
 export function useDevice(id: string) {
   const [device, setDevice] = useState<SmartLockDevice | undefined>(() => {
-    if (id === '861185084122685') {
+    if (id === '861185084122685' && !deviceService.getDeletedDeviceIds().has(id)) {
       return REAL_DEVICE_861185084122685
-    }
-    if (id === '867509082945058' || id === '861185084188827' || !id) {
-      return REAL_DEVICE_867509082945058
     }
     return undefined
   })

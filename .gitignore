@@ -17,6 +17,7 @@ data/
 server/data/
 server/dist/
 simulator/node_modules/
+*.db
 
 # Environment files
 .env

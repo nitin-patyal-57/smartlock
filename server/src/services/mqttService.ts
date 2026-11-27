@@ -651,7 +651,7 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
         }
 
         // Only receive the device if in the JSON data there is a lock option or it is the target device
-        const isSmartLock = hasLockOption(json, topic) || imei === '861185084122685' || imei === '867509082945058'
+        const isSmartLock = hasLockOption(json, topic) || imei === '861185084122685'
         if (!isSmartLock) {
           console.log(`[MQTT] Skipping ${imei}: Plain GPS tracker / non-smartlock device ignored`)
           return
@@ -776,15 +776,15 @@ export const GPS_TRACKER_IMEIS = new Set([
 function seedInitialDevices() {
   try {
     const db = getDb()
-    // Remove older/stale devices and plain GPS trackers
+    // Remove older/stale devices, plain GPS trackers, and removed SmartLock-5058
     try {
-      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
-      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
+      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584', '867509082945058')").run()
+      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584', '867509082945058')").run()
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584', '867509082945058')").run()
     } catch {}
 
-    // Ensure devices exist (861185084122685 and 867509082945058)
-    const targetImeis = ['861185084122685', '867509082945058']
+    // Ensure only active live device exists (861185084122685)
+    const targetImeis = ['861185084122685']
     const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
 
     for (const imei of targetImeis) {

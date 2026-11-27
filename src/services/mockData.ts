@@ -4,7 +4,7 @@ import type {
   LocationHistoryEntry,
   ActivityEvent,
 } from '@/types/smartlock';
-import { REAL_DEVICE_867509082945058 } from './realDevice';
+import { REAL_DEVICE_861185084122685 } from './realDevice';
 
 function daysAgo(days: number, hours = 0, minutes = 0): string {
   const d = new Date();
@@ -22,7 +22,7 @@ function minutesAgo(minutes: number): string {
 }
 
 export const mockDevices: SmartLockDevice[] = [
-  REAL_DEVICE_867509082945058,
+  REAL_DEVICE_861185084122685,
   {
     deviceId: 'SL-002',
     deviceName: 'Warehouse Side Door',
