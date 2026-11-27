@@ -878,27 +878,15 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
     mqttClient.on('connect', () => {
       console.log(`[MQTT] Connected successfully to AWS IoT Core broker!`)
 
-      // Subscribe to SmartLock and production topics
+      // Subscribe exclusively to authorized soundbox_dev topics
       const topicsToSubscribe = [
         TOPIC_SOUNDBOX_DEV_TARGET,
         TOPIC_SOUNDBOX_METRICS,
         TOPIC_SOUNDBOX_ACK,
-        'smartlock/+/metrics',
-        'smartlock/+/telemetry',
-        'smartlock/+/data',
-        'smartlock/+/status',
-        'smartlock/+/ack',
-        'wegw/+/metrics',
       ]
       mqttClient?.subscribe(topicsToSubscribe, { qos: 1 }, (err) => {
-        if (err) console.error('[MQTT] Subscription error on smartlock topics:', err)
-        else console.log(`[MQTT] Subscribed to smartlock & telemetry topics`)
-      })
-
-      // Subscribe to legacy GPS NMEA topic
-      mqttClient?.subscribe(TOPIC_LEGACY_GPS_UPLINK, { qos: 0 }, (err) => {
-        if (err) console.error('[MQTT] Subscription error on wegw topics:', err)
-        else console.log(`[MQTT] Subscribed to legacy GNSS telemetry topic: ${TOPIC_LEGACY_GPS_UPLINK}`)
+        if (err) console.error('[MQTT] Subscription error on soundbox topics:', err)
+        else console.log(`[MQTT] Subscribed successfully to soundbox_dev topics:`, topicsToSubscribe)
       })
     })
 
