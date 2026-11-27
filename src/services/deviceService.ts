@@ -440,22 +440,30 @@ export const deviceService = {
     const customDevices = getCustomDevicesFromStorage()
     let serverDevices: SmartLockDevice[] = []
 
-    try {
-      const res = await fetch(`${config.serverUrl}/api/devices?_t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' },
-        signal: AbortSignal.timeout(15000),
-      })
-      if (res.ok) {
-        const devices = await res.json()
-        if (Array.isArray(devices)) {
-          serverDevices = devices.filter(
-            (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && hasLockOption(d)
-          )
+    const serverCandidates = [config.serverUrl]
+    if (config.serverUrl !== 'http://localhost:3001') {
+      serverCandidates.push('http://localhost:3001')
+    }
+
+    for (const url of serverCandidates) {
+      try {
+        const res = await fetch(`${url}/api/devices?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store' },
+          signal: AbortSignal.timeout(3000),
+        })
+        if (res.ok) {
+          const devices = await res.json()
+          if (Array.isArray(devices) && devices.length > 0) {
+            serverDevices = devices.filter(
+              (d: any) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && (hasLockOption(d) || d.deviceId === '861185084122685')
+            )
+            break
+          }
         }
+      } catch (e) {
+        // Try next candidate
       }
-    } catch (e) {
-      console.warn('Failed to fetch devices from server:', e)
     }
 
     const deviceMap = new Map<string, SmartLockDevice>()
@@ -518,19 +526,28 @@ export const deviceService = {
     if (isIgnoredDevice(id)) return undefined
 
     let devFromServer: SmartLockDevice | undefined
-    try {
-      const res = await fetch(`${config.serverUrl}/api/devices/${id}?_t=${Date.now()}`, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000),
-      })
-      if (res.ok) {
-        const dev = await res.json()
-        if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId) && (hasLockOption(dev) || dev.deviceId === '861185084122685')) {
-          devFromServer = dev
+    const serverCandidates = [config.serverUrl]
+    if (config.serverUrl !== 'http://localhost:3001') {
+      serverCandidates.push('http://localhost:3001')
+    }
+
+    for (const url of serverCandidates) {
+      try {
+        const res = await fetch(`${url}/api/devices/${id}?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store' },
+          signal: AbortSignal.timeout(3000),
+        })
+        if (res.ok) {
+          const dev = await res.json()
+          if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId) && (hasLockOption(dev) || dev.deviceId === '861185084122685')) {
+            devFromServer = dev
+            break
+          }
         }
+      } catch {
+        // Try next candidate
       }
-    } catch {
-      // Server fallback
     }
 
     if (devFromServer) {

@@ -11,9 +11,30 @@ export const config = {
   },
   API_KEY: import.meta.env.VITE_API_KEY || 'smartlock-dev-key-2024',
   USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA === 'true' || false,
-  // Live Cloud Server URL (Render / Cloud deployment)
-  serverUrl: import.meta.env.VITE_SERVER_URL || 'https://smartlock-p4rb.onrender.com',
-  wsUrl: import.meta.env.VITE_WS_URL || 'wss://smartlock-p4rb.onrender.com/ws',
+  // Live SmartLock Server URL & WebSocket endpoint
+  get serverUrl(): string {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname
+      if (h === 'localhost' || h === '127.0.0.1') {
+        if (window.location.port === '3001') {
+          return window.location.origin
+        }
+        return 'http://localhost:3001'
+      }
+    }
+    return import.meta.env.VITE_SERVER_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
+  },
+  get wsUrl(): string {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname
+      if (h === 'localhost' || h === '127.0.0.1') {
+        return 'ws://localhost:3001/ws'
+      }
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      return `${proto}//${window.location.host}/ws`
+    }
+    return import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
+  },
   // Walnut Medical API config
   walnut: {
     get apiKey() {

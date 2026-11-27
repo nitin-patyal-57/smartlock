@@ -13,6 +13,7 @@ dist-ssr
 *.local
 
 # Server data
+data/
 server/data/
 server/dist/
 simulator/node_modules/

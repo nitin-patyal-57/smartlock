@@ -881,18 +881,14 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
       // Subscribe to SmartLock and production topics
       const topicsToSubscribe = [
         TOPIC_SOUNDBOX_DEV_TARGET,
-        TOPIC_SOUNDBOX_DEV_TARGET_ALL,
         TOPIC_SOUNDBOX_METRICS,
         TOPIC_SOUNDBOX_ACK,
-        'soundbox_dev/#',
         'smartlock/+/metrics',
         'smartlock/+/telemetry',
         'smartlock/+/data',
         'smartlock/+/status',
         'smartlock/+/ack',
-        'smartlock/#',
         'wegw/+/metrics',
-        '+/+/metrics',
       ]
       mqttClient?.subscribe(topicsToSubscribe, { qos: 1 }, (err) => {
         if (err) console.error('[MQTT] Subscription error on smartlock topics:', err)
