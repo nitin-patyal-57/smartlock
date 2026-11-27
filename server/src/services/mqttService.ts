@@ -1,18 +1,23 @@
 import mqtt from 'mqtt'
 import { getDb } from './database'
 import { MQTT_CA, MQTT_CERT, MQTT_KEY } from './mqttCerts'
+import {
+  getDevice,
+  listDeviceIds,
+  normalizeImei,
+  recordActivityTransitions,
+  recordAlertTransitions,
+} from './deviceStore'
 
 const AWS_IOT_ENDPOINT = process.env.MQTT_BROKER_URL || 'mqtts://avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com:8883'
 
-// Topics as per WEGW Tracker - MQTT Interface specification (2026-11-23)
-const TOPIC_SOUNDBOX_DEV_TARGET = 'soundbox_dev/861185084122685/metrics'
-const TOPIC_SOUNDBOX_DEV_TARGET_ALL = 'soundbox_dev/861185084122685/#'
-const TOPIC_SOUNDBOX_METRICS = 'soundbox_dev/+/metrics'
-const TOPIC_SOUNDBOX_ACK = 'soundbox_dev/+/ack'
+// Topics as per WEGW Tracker - MQTT Interface specification (2026-11-23).
+// Only registered locks are subscribed (per-IMEI topics); there are no wildcard
+// subscriptions, so a removed lock can never re-register itself by publishing.
 const TOPIC_SOUNDBOX_CMD_PREFIX = 'soundbox_dev/'
+const deviceTopics = (imei: string) => [`soundbox_dev/${imei}/metrics`, `soundbox_dev/${imei}/ack`]
 
 // Legacy / diagnostic GNSS tool topics
-const TOPIC_LEGACY_GPS_UPLINK = 'wegw/+/gps/nmea'
 const TOPIC_LEGACY_GPS_CMD_PREFIX = 'wegw/'
 
 let mqttClient: mqtt.MqttClient | null = null
@@ -157,63 +162,6 @@ export function parseNmeaPayload(rawPayload: string): { gps: ParsedGpsData | nul
   }
 
   return { gps, sentences: lines }
-}
-
-/**
- * Check if the incoming JSON payload specifically belongs to a SmartLock device.
- * Excludes plain GPS trackers, vehicle trackers, and soundboxes that only have GPS/cellular/relays without lock hardware.
- */
-export function hasLockOption(json: any, topic?: string): boolean {
-  if (!json || typeof json !== 'object') return false
-
-  // Topic check: if published on a dedicated smartlock topic
-  if (topic && (topic.startsWith('smartlock/') || topic.includes('/smartlock/'))) {
-    return true
-  }
-
-  // Explicit device type/model declaration
-  if (
-    json.isSmartLock === true ||
-    json.deviceType === 'smartlock' ||
-    json.device_type === 'smartlock' ||
-    json.type === 'smartlock' ||
-    json.device?.type === 'smartlock' ||
-    json.device?.device_type === 'smartlock'
-  ) {
-    return true
-  }
-
-  // Explicit lock object: must exist and have content
-  if (json.lock !== undefined && json.lock !== null) {
-    if (typeof json.lock === 'object') {
-      const keys = Object.keys(json.lock)
-      if (keys.length > 0) return true
-    } else {
-      return true
-    }
-  }
-
-  // Explicit lock/door status properties in payload
-  if (
-    json.lock_status !== undefined ||
-    json.lockStatus !== undefined ||
-    json.lock_state !== undefined ||
-    json.lockState !== undefined ||
-    json.door_status !== undefined ||
-    json.doorStatus !== undefined ||
-    json.door !== undefined ||
-    json.smartlock !== undefined ||
-    json.smart_lock !== undefined
-  ) {
-    return true
-  }
-
-  // Explicit lock relay (plain relays like relay '1' on vehicle GPS trackers are NOT smartlocks)
-  if (json.relays && (json.relays.lock !== undefined || json.relays.smartlock !== undefined)) {
-    return true
-  }
-
-  return false
 }
 
 /**
@@ -496,135 +444,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
 }
 
 /**
- * Creates default device data structure matching real testing device 861185084122719.
- */
-function createDefaultDevice(deviceId: string, gps: ParsedGpsData, now: string) {
-  return {
-    deviceId,
-    deviceName: `GW1NS-4 (${deviceId})`,
-    status: 'online',
-    lastSeen: now,
-    device: {
-      imei: deviceId,
-      modelId: 'GW1NS-4',
-      serialNumber: `SN-${deviceId.slice(-6)}`,
-      appVersion: 'WMZ_DEV_1.0.2',
-      sdkVersion: 'WM_SDK_C_261008',
-      hardwareVersion: 'Z636_V1',
-      bootReason: 'power-off charging',
-      uptime: 389
-    },
-    power: {
-      batteryVoltage: 4.22,
-      batteryPercentage: 100,
-      isCharging: true,
-      isUsbConnected: true,
-      isExternalPower: true,
-      isLowBattery: false
-    },
-    cellular: {
-      operator: 'IND airtel',
-      networkType: 'LTE',
-      rssi: 29,
-      signalQuality: 5,
-      ip: '172.18.222.207'
-    },
-    gps,
-    lock: {
-      lockStatus: true,
-      doorStatus: false,
-      motorStatus: 'idle',
-      motorCurrent: 0,
-      positionSensor: true,
-      lastLockTime: '2026-11-23T10:32:44Z',
-      lastUnlockTime: '',
-      unlockMethod: 'remote',
-      unlockCount: 1,
-      failedUnlockCount: 0
-    },
-    access: {
-      keypad: { enabled: true, lastUsed: '', count: 0 },
-      nfc: { enabled: true, lastUsed: '', count: 0 },
-      bluetooth: { enabled: true, lastUsed: '', count: 0 },
-      remote: { enabled: true, lastUsed: '2026-11-23T10:32:44Z', count: 1 }
-    },
-    tamper: {
-      tamperStatus: false,
-      caseOpen: false,
-      wireCut: false,
-      lockBreak: false,
-      abnormalVibration: false,
-      forcedUnlock: false,
-      tamperCount: 0,
-      lastTamperTime: ''
-    },
-    accelerometer: {
-      motion: false,
-      x: -0.008,
-      y: 0.008,
-      z: -1.043,
-      harshBraking: false,
-      harshAcceleration: false,
-      sharpTurn: false,
-      impactCount: 0,
-      drivingScore: 100
-    },
-    trip: {
-      vehicleStatus: 'stationary',
-      tripStatus: false,
-      tripId: 'TRIP-2719',
-      distance: 0,
-      maximumSpeed: 0,
-      overspeedCount: 0
-    },
-    geofence: {
-      status: 'inside',
-      geofenceId: 'GF-01',
-      violation: false,
-      lastEvent: 'enter'
-    },
-    sensors: {
-      temperature: 28.0,
-      internalTemperature: 31.0,
-      humidity: 50,
-      hardwareSensorStatus: true
-    },
-    security: {
-      deviceBinding: true,
-      vehicleId: '',
-      customerId: '',
-      certificateStatus: true,
-      secureBoot: true,
-      firmwareSignature: true
-    },
-    memory: {
-      totalStorage: 16777216,
-      usedStorage: 5242880,
-      freeStorage: 11534336
-    },
-    diagnostics: {
-      lastDiagnosticTime: '2026-11-23T10:32:44Z',
-      errorCodes: [],
-      systemHealth: 'good'
-    },
-    rtc: {
-      rtcTime: '2026-11-23T05:02:44.945Z',
-      rtcSynced: true
-    },
-    relays: {
-      '1': 'off',
-      '2': 'off'
-    },
-    leds: {
-      red: 'auto',
-      green: 'auto',
-      blue: 'auto'
-    }
-  }
-}
-
-/**
- * Handle incoming telemetry from MQTT
+ * Handle incoming telemetry from MQTT. Only registered locks are accepted.
  */
 function handleMqttMessage(topic: string, messageBuffer: Buffer) {
   try {
@@ -632,54 +452,34 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
     const now = new Date().toISOString()
     const db = getDb()
 
-    // 1. Check for SmartLock / Tracker metrics: soundbox_dev/{imei}/metrics, smartlock/{imei}/metrics, etc.
-    const metricsMatch = topic.match(/^(?:soundbox_dev|smartlock|wegw|devices)\/([^/]+)\/(?:metrics|telemetry|data|status)$/) ||
-                         topic.match(/^([^/]+)\/([^/]+)\/metrics$/)
-
+    // 1. Metrics: soundbox_dev/{imei}/metrics
+    const metricsMatch = topic.match(/^soundbox_dev\/([^/]+)\/metrics$/)
     if (metricsMatch) {
-      const imei = (metricsMatch[1] === 'soundbox_dev' || metricsMatch[1] === 'smartlock' || metricsMatch[1] === 'wegw' || metricsMatch[1] === 'devices')
-        ? metricsMatch[2]
-        : metricsMatch[1]
+      const imei = metricsMatch[1]
+      const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+      if (!existingRow) {
+        // Not registered (or removed from the dashboard): ignore, never auto-create.
+        return
+      }
 
       try {
         const json = JSON.parse(rawPayload)
-
-        // Drop known GPS trackers
-        if (GPS_TRACKER_IMEIS.has(imei)) {
-          console.log(`[MQTT] Skipping ${imei}: Known GPS Tracker excluded from SmartLock dashboard`)
-          return
-        }
-
-        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
-        const isRegistered = !!existingRow
-
-        // Accept if device has lock options, is a registered device, or is a known hardware IMEI
-        const isSmartLock = hasLockOption(json, topic) || isRegistered || imei === '861185084122685' || imei === '861185084188827'
-        if (!isSmartLock) {
-          console.log(`[MQTT] Skipping ${imei}: Plain GPS tracker / non-smartlock device ignored`)
-          return
-        }
-        const existingDev = existingRow ? JSON.parse(existingRow.data) : null
+        const existingDev = JSON.parse(existingRow.data)
+        const prevDev = { ...existingDev, lastSeen: existingRow.lastSeen }
 
         const deviceData = parseSoundboxMetrics(json, imei, now, existingDev)
+        // Keep the name the user gave the lock when registering it
+        deviceData.deviceName = existingRow.deviceName
+        deviceData.lastSeen = now
 
         console.log(`[MQTT SmartLock Metrics] ${imei}: Lock=${deviceData.lock.lockStatus ? 'LOCKED' : 'UNLOCKED'}, Door=${deviceData.lock.doorStatus ? 'OPEN' : 'CLOSED'}, Lat=${deviceData.gps.latitude}, Lon=${deviceData.gps.longitude}, Speed=${deviceData.gps.speed} km/h, Bat=${deviceData.power.batteryPercentage}%`)
 
-        // Save in DB
-        db.prepare(`
-          INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?)
-          ON CONFLICT(deviceId) DO UPDATE SET
-            status = excluded.status,
-            lastSeen = excluded.lastSeen,
-            data = excluded.data,
-            updatedAt = excluded.updatedAt
-        `).run(imei, deviceData.deviceName, deviceData.status, now, JSON.stringify(deviceData), now)
+        db.prepare('UPDATE devices SET status = ?, lastSeen = ?, data = ?, updatedAt = ? WHERE deviceId = ?')
+          .run(deviceData.status, now, JSON.stringify(deviceData), now, imei)
 
-        // Save to history
         db.prepare(`
-          INSERT INTO device_history 
-          (deviceId, latitude, longitude, altitude, speed, heading, accuracy, 
+          INSERT INTO device_history
+          (deviceId, latitude, longitude, altitude, speed, heading, accuracy,
            batteryPercentage, batteryVoltage, lockStatus, doorStatus, signalQuality, rssi, timestamp)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
@@ -699,13 +499,13 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
           now
         )
 
-        // Push real-time to dashboard
+        const alerts = recordAlertTransitions(imei, prevDev, deviceData, now)
+        const activity = recordActivityTransitions(imei, prevDev, deviceData, now)
+
         if (broadcastFn) {
-          broadcastFn('device_update', {
-            deviceId: imei,
-            data: deviceData,
-            timestamp: now
-          })
+          broadcastFn('device_update', { deviceId: imei, data: deviceData, timestamp: now })
+          for (const alert of alerts) broadcastFn('alert', alert)
+          for (const event of activity) broadcastFn('activity', event)
         }
       } catch (e) {
         console.error(`[MQTT] Failed to parse metrics JSON from ${imei}:`, e)
@@ -713,48 +513,35 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
       return
     }
 
-    // 2. Check for SmartLock Acks: soundbox_dev/{imei}/ack, smartlock/{imei}/ack, etc.
-    const ackMatch = topic.match(/^(?:soundbox_dev|smartlock|wegw|devices)\/([^/]+)\/ack$/)
+    // 2. Acks: soundbox_dev/{imei}/ack
+    const ackMatch = topic.match(/^soundbox_dev\/([^/]+)\/ack$/)
     if (ackMatch) {
       const imei = ackMatch[1]
+      const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+      if (!existingRow) return
+
       try {
         const ack = JSON.parse(rawPayload)
         console.log(`[MQTT SmartLock Ack] ${imei}:`, ack)
 
-        // Update relay/lock status in existing device
-        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
-        if (existingRow) {
-          const dev = JSON.parse(existingRow.data)
-          if (ack.lock !== undefined) {
-            dev.lock = parseLockInfo(ack, now, dev.lock)
-          } else if (ack.relays && ack.relays['1']) {
-            dev.lock.lockStatus = (ack.relays['1'] === 'on')
-          }
-          if (ack.relays) dev.relays = ack.relays
-          if (ack.leds) dev.leds = ack.leds
+        const dev = JSON.parse(existingRow.data)
+        if (ack.lock !== undefined) {
+          dev.lock = parseLockInfo(ack, now, dev.lock)
+        } else if (ack.relays && ack.relays['1']) {
+          dev.lock.lockStatus = (ack.relays['1'] === 'on')
+        }
+        if (ack.relays) dev.relays = ack.relays
+        if (ack.leds) dev.leds = ack.leds
 
-          db.prepare('UPDATE devices SET data = ?, updatedAt = ? WHERE deviceId = ?')
-            .run(JSON.stringify(dev), now, imei)
+        db.prepare('UPDATE devices SET data = ?, updatedAt = ? WHERE deviceId = ?')
+          .run(JSON.stringify(dev), now, imei)
 
-          if (broadcastFn) {
-            broadcastFn('device_update', { deviceId: imei, data: dev, timestamp: now })
-            broadcastFn('device_ack', { deviceId: imei, ack, timestamp: now })
-          }
+        if (broadcastFn) {
+          broadcastFn('device_update', { deviceId: imei, data: getDevice(imei) ?? dev, timestamp: now })
+          broadcastFn('device_ack', { deviceId: imei, ack, timestamp: now })
         }
       } catch (e) {
         console.error(`[MQTT] Failed to parse ack JSON from ${imei}:`, e)
-      }
-      return
-    }
-
-    // 3. Check for legacy NMEA: wegw/{imei}/gps/nmea - Plain GPS tracker data (excluded from smartlocks)
-    const legacyMatch = topic.match(/^wegw\/([^/]+)\/gps\/nmea$/)
-    if (legacyMatch) {
-      const imei = legacyMatch[1]
-      const { gps, sentences } = parseNmeaPayload(rawPayload)
-
-      if (broadcastFn) {
-        broadcastFn('mqtt_nmea', { deviceId: imei, raw: rawPayload, sentences, timestamp: now })
       }
       return
     }
@@ -764,46 +551,46 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
 }
 
 /**
- * Seed initial device entries if not present
- */
-export const GPS_TRACKER_IMEIS = new Set([
-  '867509082945058', // Purged SmartLock-5058
-  '861185084122693', // First card: WEGW GPS Tracker
-  '861185084122719', // Third card: WEGW GPS Tracker
-  '861185084200101',
-  '867787064208584',
-])
-
-/**
- * Exported function to dynamically subscribe to a device's MQTT topics
+ * Subscribe to a registered lock's MQTT topics.
  */
 export function subscribeToDeviceMqtt(imei: string) {
   if (!mqttClient) return
-  const clean = imei.trim()
-  const topics = [
-    `soundbox_dev/${clean}/metrics`,
-    `soundbox_dev/${clean}/ack`,
-  ]
+  let clean: string
+  try {
+    clean = normalizeImei(imei)
+  } catch {
+    console.warn(`[MQTT] Refusing to subscribe to invalid IMEI "${imei}"`)
+    return
+  }
+  const topics = deviceTopics(clean)
   mqttClient.subscribe(topics, { qos: 1 }, (err) => {
     if (err) {
       console.error(`[MQTT] Failed to subscribe to ${clean}:`, err)
     } else {
-      console.log(`[MQTT] Actively subscribed to new device ${clean} on MQTT:`, topics)
+      console.log(`[MQTT] Subscribed to ${clean}:`, topics)
     }
   })
 }
 
-function seedInitialDevices() {
+/**
+ * Stop receiving a lock's MQTT topics (called when it is removed from the dashboard).
+ */
+export function unsubscribeFromDeviceMqtt(imei: string) {
+  if (!mqttClient) return
+  let clean: string
   try {
-    const db = getDb()
-    // Clear all older devices, history, and alerts from server DB - clean slate
-    db.prepare('DELETE FROM alerts').run()
-    db.prepare('DELETE FROM device_history').run()
-    db.prepare('DELETE FROM devices').run()
-    console.log('[MQTT] Server DB cleared - ready for user to add devices and stream via MQTT')
-  } catch (err) {
-    console.error('[MQTT] Error initializing/clearing devices:', err)
+    clean = normalizeImei(imei)
+  } catch {
+    return
   }
+  const topics = deviceTopics(clean)
+  mqttClient.unsubscribe(topics, (err) => {
+    if (err) {
+      console.error(`[MQTT] Failed to unsubscribe from ${clean}:`, err)
+    } else {
+      console.log(`[MQTT] Unsubscribed from ${clean}:`, topics)
+    }
+  })
 }
 
 /**
@@ -812,24 +599,26 @@ function seedInitialDevices() {
 export function initMqttService(broadcast: (event: string, data: unknown) => void) {
   broadcastFn = broadcast
 
-  seedInitialDevices()
-
   // Background offline sweeper: checks every 15s if devices have not reported in > 2 minutes
   setInterval(() => {
     try {
       const db = getDb()
       const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-      const res = db.prepare(`
-        UPDATE devices
-        SET status = 'offline'
+      const stale = db.prepare(`
+        SELECT deviceId FROM devices
         WHERE (status = 'online' OR status = 'warning') AND (lastSeen < ? OR lastSeen IS NULL OR lastSeen = '')
-      `).run(cutoff)
-      if (res.changes > 0) {
-        console.log(`[MQTT] Marked ${res.changes} inactive device(s) as offline`)
-        if (broadcastFn) {
-          broadcastFn('device_status_change', { status: 'offline' })
+      `).all(cutoff) as { deviceId: string }[]
+      if (stale.length === 0) return
+
+      const markOffline = db.prepare("UPDATE devices SET status = 'offline' WHERE deviceId = ?")
+      for (const { deviceId } of stale) {
+        markOffline.run(deviceId)
+        const dev = getDevice(deviceId)
+        if (dev && broadcastFn) {
+          broadcastFn('device_update', { deviceId, data: dev, timestamp: new Date().toISOString() })
         }
       }
+      console.log(`[MQTT] Marked ${stale.length} inactive device(s) as offline`)
     } catch (e) {
       console.error('[MQTT] Error running offline sweep:', e)
     }
@@ -859,25 +648,14 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
     mqttClient.on('connect', () => {
       console.log(`[MQTT] Connected successfully to AWS IoT Core broker!`)
 
-      // Subscribe exclusively to authorized soundbox_dev topics
-      const topicsToSubscribe = [
-        TOPIC_SOUNDBOX_DEV_TARGET,
-        TOPIC_SOUNDBOX_METRICS,
-        TOPIC_SOUNDBOX_ACK,
-      ]
-      mqttClient?.subscribe(topicsToSubscribe, { qos: 1 }, (err) => {
-        if (err) console.error('[MQTT] Subscription error on soundbox topics:', err)
-        else console.log(`[MQTT] Subscribed successfully to soundbox_dev topics:`, topicsToSubscribe)
-      })
-
-      // Dynamically subscribe to any registered devices currently in the DB
+      // Clean session: re-subscribe every registered lock on each (re)connect
       try {
-        const db = getDb()
-        const rows = db.prepare('SELECT deviceId FROM devices').all() as { deviceId: string }[]
-        for (const row of rows) {
-          subscribeToDeviceMqtt(row.deviceId)
+        for (const deviceId of listDeviceIds()) {
+          subscribeToDeviceMqtt(deviceId)
         }
-      } catch {}
+      } catch (e) {
+        console.error('[MQTT] Failed to resubscribe registered devices:', e)
+      }
     })
 
     mqttClient.on('message', (topic, payload) => {

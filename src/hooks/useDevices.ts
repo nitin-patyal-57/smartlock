@@ -1,241 +1,77 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
+import { useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore } from 'react'
+import type { SmartLockDevice, LocationHistoryEntry } from '@/types/smartlock'
 import { deviceService } from '@/services/deviceService'
-import { wsService } from '@/services/websocket'
+import { wsService, type RealtimeState } from '@/services/websocket'
 import { useRefresh } from '@/context/RefreshContext'
 
+/**
+ * All hooks read from the single realtime store fed by the server WebSocket
+ * (MQTT bridge). No REST calls, no polling for devices/alerts/activity.
+ */
+function useRealtimeState(): RealtimeState {
+  return useSyncExternalStore(wsService.subscribe, wsService.getState)
+}
+
+function connectionStatus(s: RealtimeState) {
+  return {
+    loading: !s.synced && !s.connectionError,
+    error: s.synced ? null : s.connectionError,
+  }
+}
+
+const refresh = () => wsService.refresh()
+
 export function useDevices() {
-  const [devices, setDevices] = useState<SmartLockDevice[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const s = useRealtimeState()
 
-  const fetchDevices = useCallback(async () => {
-    try {
-      setError(null)
-      const data = await deviceService.getDevices()
-      setDevices(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch devices')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const addDevice = useCallback(
+    (params: { imei: string; deviceName?: string; modelId?: string }) => deviceService.addDevice(params),
+    [],
+  )
+  const deleteDevice = useCallback((deviceId: string) => deviceService.deleteDevice(deviceId), [])
 
-  useEffect(() => {
-    fetchDevices()
-
-    // Real-time WebSocket listener: receives live MQTT pushes (every 1s)
-    const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
-      if (deviceService.isIgnoredDevice(deviceId) || deviceService.getDeletedDeviceIds().has(deviceId)) {
-        return
-      }
-      // Strictly recognize and allow only genuine SmartLock devices (ignore plain GPS trackers)
-      if (!deviceService.hasLockOption(data)) {
-        return
-      }
-      setDevices(prev => {
-        const idx = prev.findIndex(d => d.deviceId === deviceId)
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = { 
-            ...next[idx], 
-            ...data, 
-            gps: { ...next[idx].gps, ...data.gps },
-            lock: { ...next[idx].lock, ...(data.lock || {}) }
-          }
-          return next
-        }
-        return [...prev, data as SmartLockDevice]
-      })
-    })
-
-    const onDeviceDeleted = (payload: any) => {
-      const deletedId = payload?.deviceId
-      if (deletedId) {
-        setDevices(prev => prev.filter(d => d.deviceId !== deletedId))
-      }
-    }
-    wsService.on('device_deleted', onDeviceDeleted)
-
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe()
-      wsService.off('device_deleted', onDeviceDeleted)
-    }
-  }, [fetchDevices])
-
-  const addDevice = useCallback(async (params: { imei: string; deviceName?: string; modelId?: string }) => {
-    const newDev = await deviceService.addDevice(params)
-    setDevices(prev => {
-      const filtered = prev.filter(d => d.deviceId !== newDev.deviceId)
-      return [newDev, ...filtered]
-    })
-    return newDev
-  }, [])
-
-  const deleteDevice = useCallback(async (deviceId: string) => {
-    const success = await deviceService.deleteDevice(deviceId)
-    if (success) {
-      setDevices(prev => prev.filter(d => d.deviceId !== deviceId))
-    }
-    return success
-  }, [])
-
-  useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-
-    if (isAutoRefreshEnabled && refreshInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        fetchDevices()
-      }, refreshInterval * 1000)
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isAutoRefreshEnabled, refreshInterval, fetchDevices])
-
-  return { devices, loading, error, refetch: fetchDevices, addDevice, deleteDevice }
+  return { devices: s.devices, ...connectionStatus(s), refetch: refresh, addDevice, deleteDevice }
 }
 
 export function useDevice(id: string) {
-  const [device, setDevice] = useState<SmartLockDevice | undefined>(undefined)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const fetchDevice = useCallback(async () => {
-    try {
-      setError(null)
-      const data = await deviceService.getDeviceById(id)
-      setDevice(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch device')
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    fetchDevice()
-
-    // Real-time WebSocket listener for single device
-    const unsubscribe = wsService.subscribeToDeviceUpdates((deviceId, data) => {
-      if (deviceId === id) {
-        setDevice(prev => prev ? { 
-          ...prev, 
-          ...data, 
-          gps: { ...prev.gps, ...data.gps },
-          lock: { ...prev.lock, ...(data.lock || {}) }
-        } : data as SmartLockDevice)
-      }
-    })
-
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe()
-    }
-  }, [fetchDevice, id])
-
-  useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-
-    if (isAutoRefreshEnabled && refreshInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        fetchDevice()
-      }, refreshInterval * 1000)
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isAutoRefreshEnabled, refreshInterval, fetchDevice])
-
-  return { device, loading, error, refetch: fetchDevice }
+  const s = useRealtimeState()
+  const device = useMemo(() => s.devices.find((d) => d.deviceId === id), [s.devices, id])
+  return { device, ...connectionStatus(s), refetch: refresh }
 }
 
 export function useAlerts() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const fetchAlerts = useCallback(async () => {
-    try {
-      setError(null)
-      const data = await deviceService.getAlerts()
-      setAlerts(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchAlerts()
-  }, [fetchAlerts])
-
-  useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-
-    if (isAutoRefreshEnabled && refreshInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        fetchAlerts()
-      }, refreshInterval * 1000)
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isAutoRefreshEnabled, refreshInterval, fetchAlerts])
-
-  const acknowledgeAlert = useCallback(
-    async (alertId: string) => {
-      await deviceService.acknowledgeAlert(alertId)
-      setAlerts((prev) =>
-        prev.map((a) => (a.id === alertId ? { ...a, acknowledged: true } : a)),
-      )
-    },
-    [],
-  )
-
-  const acknowledgeAllAlerts = useCallback(async () => {
-    await deviceService.acknowledgeAllAlerts()
-    setAlerts((prev) =>
-      prev.map((a) => ({ ...a, acknowledged: true })),
-    )
-  }, [])
-
-  return { alerts, loading, error, refetch: fetchAlerts, acknowledgeAlert, acknowledgeAllAlerts }
+  const s = useRealtimeState()
+  const acknowledgeAlert = useCallback((alertId: string) => deviceService.acknowledgeAlert(alertId), [])
+  const acknowledgeAllAlerts = useCallback(() => deviceService.acknowledgeAllAlerts(), [])
+  return { alerts: s.alerts, ...connectionStatus(s), refetch: refresh, acknowledgeAlert, acknowledgeAllAlerts }
 }
 
+export function useActivityEvents(deviceId?: string) {
+  const s = useRealtimeState()
+  const events = useMemo(
+    () => (deviceId ? s.activity.filter((e) => e.deviceId === deviceId) : s.activity),
+    [s.activity, deviceId],
+  )
+  return { events, ...connectionStatus(s), refetch: refresh }
+}
+
+/**
+ * Location history is the one query that isn't pushed: it is requested over
+ * the WebSocket and re-requested on the user's refresh interval.
+ */
 export function useLocationHistory(deviceId: string, from?: string, to?: string) {
   const [history, setHistory] = useState<LocationHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
+  const connected = useSyncExternalStore(wsService.subscribe, () => wsService.getState().connected)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchHistory = useCallback(async () => {
-    if (!deviceId) return
+    if (!deviceId) {
+      setLoading(false)
+      return
+    }
     try {
       setError(null)
       const data = await deviceService.getLocationHistory(deviceId, from, to)
@@ -248,76 +84,23 @@ export function useLocationHistory(deviceId: string, from?: string, to?: string)
   }, [deviceId, from, to])
 
   useEffect(() => {
-    fetchHistory()
-  }, [fetchHistory])
+    if (connected) fetchHistory()
+  }, [fetchHistory, connected])
 
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
     }
-
-    if (isAutoRefreshEnabled && refreshInterval > 0 && deviceId) {
-      intervalRef.current = setInterval(() => {
-        fetchHistory()
-      }, refreshInterval * 1000)
+    if (connected && isAutoRefreshEnabled && refreshInterval > 0 && deviceId) {
+      intervalRef.current = setInterval(fetchHistory, refreshInterval * 1000)
     }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [isAutoRefreshEnabled, refreshInterval, fetchHistory, deviceId])
+  }, [connected, isAutoRefreshEnabled, refreshInterval, fetchHistory, deviceId])
 
   return { history, loading, error, refetch: fetchHistory }
-}
-
-export function useActivityEvents(deviceId?: string) {
-  const [events, setEvents] = useState<ActivityEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const fetchEvents = useCallback(async () => {
-    try {
-      setError(null)
-      const data = deviceId
-        ? await deviceService.getActivityEventsByDevice(deviceId)
-        : await deviceService.getActivityEvents()
-      setEvents(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch activity events')
-    } finally {
-      setLoading(false)
-    }
-  }, [deviceId])
-
-  useEffect(() => {
-    fetchEvents()
-  }, [fetchEvents])
-
-  useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-
-    if (isAutoRefreshEnabled && refreshInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        fetchEvents()
-      }, refreshInterval * 1000)
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isAutoRefreshEnabled, refreshInterval, fetchEvents])
-
-  return { events, loading, error, refetch: fetchEvents }
 }
 
 interface DashboardStats {
