@@ -98,7 +98,23 @@ export function formatSpeed(kmh: number): string {
 }
 
 export function getDeviceStatus(device: SmartLockDevice): 'online' | 'offline' | 'warning' {
-  return device.status
+  return isDeviceOnline(device) ? (device.status || 'online') : 'offline'
+}
+
+/**
+ * Check whether a device is currently online and reporting live telemetry.
+ * If status is 'offline', or lastSeen is empty or older than 2 minutes (120s), the device is considered OFF.
+ */
+export function isDeviceOnline(device?: SmartLockDevice | null): boolean {
+  if (!device) return false
+  if (device.status === 'offline') return false
+  if (!device.lastSeen) return false
+  const d = parseDateSafe(device.lastSeen)
+  if (!d) return false
+  const diffMs = Date.now() - d.getTime()
+  // If no ping/telemetry within the last 2 minutes, the device is considered off/offline
+  if (isNaN(diffMs) || diffMs > 120000) return false
+  return device.status === 'online'
 }
 
 export function formatDateTime(isoString: string): string {

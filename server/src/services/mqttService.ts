@@ -784,114 +784,38 @@ function seedInitialDevices() {
       db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
     } catch {}
 
-    // Seed the user's SmartLock-5058 (867509082945058)
+    // Ensure SmartLock 867509082945058 exists, defaulting to 'offline' without demo data when turned off
     const imei = '867509082945058'
-    const now = new Date().toISOString()
-    const smartLockData = parseSoundboxMetrics({
-      device: {
-        imei: "867509082945058",
-        model_id: "WM_SB_1605",
-        serial_no: "",
-        app_v: "WM_BP_2.0.8",
-        sdk_v: "WM_SDK_C_260702",
-        hw_v: "",
-        boot_reason: "",
-        uptime_sec: ""
-      },
-      power: {
-        bat_v: 4075,
-        bat_lvl: 94,
-        charging: "",
-        usb: "N",
-        ext_power: "",
-        ext_power_v: "",
-        low_battery: ""
-      },
-      cellular: {
-        imsi: "405867153266129",
-        operator: "JIO 4G",
-        net_t: "LTE",
-        mcc: "869",
-        mnc: "405",
-        cell_id: "131860",
-        tac: "174",
-        rssi: 73,
-        rsrp: 35,
-        rsrq: 15,
-        sinr: "",
-        signal: "EXCELLENT",
-        band: "40",
-        ip4: "10.38.65.70",
-        ip6: "254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18"
-      },
-      gps: {
-        status: "FIXED",
-        latitude: 30.704649,
-        longitude: 76.717873,
-        altitude_m: 315.5,
-        speed_kmph: 42.6,
-        heading_deg: 128,
-        satellites: 14,
-        hdop: 0.9,
-        accuracy_m: 4.2,
-        fix_type: "3D",
-        last_fix: "2026-09-15T10:40:21Z",
-        location: "Mohali, Punjab"
-      },
-      lock: {
-        lock_status: "LOCKED",
-        door_status: "CLOSED",
-        lock_motor_status: "OK",
-        motor_current_ma: 420,
-        lock_position_sensor: "LOCKED",
-        last_lock_time: "2026-09-15T10:20:15Z",
-        last_unlock_time: "2026-09-15T09:45:10Z",
-        last_unlock_method: "REMOTE",
-        unlock_count: 24,
-        failed_unlock_count: 2
-      },
-      access: {
-        keypad: {
-          status: "OK",
-          enabled: true,
-          failed_attempts: 0,
-          last_access: "2026-09-15T08:30:12Z"
-        },
-        tamper: {
-          tamper_status: "",
-          case_open: "",
-          wire_cut: "",
-          lock_break: "",
-          abnormal_vibration: "",
-          forced_unlock: "",
-          tamper_count: "",
-          last_tamper_time: ""
-        },
-        accelerometer: {
-          status: "OK",
-          motion: true,
-          x_g: 0.04,
-          y_g: -0.02,
-          z_g: 1.01,
-          harsh_braking_count: 2,
-          harsh_acceleration_count: 1,
-          sharp_turn_count: 3,
-          impact_count: 0,
-          driving_score: 91
-        },
-        rtc: "2026-11-17T14:12:23.433Z"
+    const existing = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+
+    if (!existing) {
+      const initialOfflineDev = {
+        deviceId: imei,
+        deviceName: 'SmartLock-5058 (WM_SB_1605)',
+        status: 'offline',
+        lastSeen: '',
+        isSmartLock: true,
+        device: { imei, modelId: 'WM_SB_1605' },
+        power: {},
+        cellular: {},
+        gps: {},
+        lock: {},
+        access: {},
+        accelerometer: {}
       }
-    }, imei, now)
-
-    db.prepare(`
-      INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(deviceId) DO UPDATE SET
-        data = excluded.data,
-        updatedAt = excluded.updatedAt
-    `).run(imei, 'SmartLock-5058 (WM_SB_1605)', 'online', now, JSON.stringify(smartLockData), now)
-
-    console.log('[MQTT] Seeded SmartLock 867509082945058 into database')
+      db.prepare(`
+        INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(imei, 'SmartLock-5058 (WM_SB_1605)', 'offline', '', JSON.stringify(initialOfflineDev), new Date().toISOString())
+      console.log('[MQTT] Initialized SmartLock 867509082945058 as offline')
+    } else {
+      // If inactive for > 2 minutes, enforce offline status
+      if (!existing.lastSeen || existing.lastSeen < cutoff) {
+        db.prepare("UPDATE devices SET status = 'offline' WHERE deviceId = ?").run(imei)
+        console.log('[MQTT] Device 867509082945058 is currently offline (awaiting MQTT connection)')
+      }
+    }
   } catch (err) {
     console.error('[MQTT] Error initializing devices:', err)
   }
@@ -904,6 +828,27 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
   broadcastFn = broadcast
 
   seedInitialDevices()
+
+  // Background offline sweeper: checks every 15s if devices have not reported in > 2 minutes
+  setInterval(() => {
+    try {
+      const db = getDb()
+      const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+      const res = db.prepare(`
+        UPDATE devices
+        SET status = 'offline'
+        WHERE status = 'online' AND (lastSeen < ? OR lastSeen IS NULL OR lastSeen = '')
+      `).run(cutoff)
+      if (res.changes > 0) {
+        console.log(`[MQTT] Marked ${res.changes} inactive device(s) as offline`)
+        if (broadcastFn) {
+          broadcastFn('device_status_change', { status: 'offline' })
+        }
+      }
+    } catch (e) {
+      console.error('[MQTT] Error running offline sweep:', e)
+    }
+  }, 15000)
 
   if (mqttClient) {
     console.log('[MQTT] Client already initialized')

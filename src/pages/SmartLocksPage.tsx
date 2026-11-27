@@ -28,7 +28,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { deviceService } from '@/services/deviceService'
-import { getHeadingDirection, formatTimeSafe, formatRelativeTime } from '@/utils/helpers'
+import { getHeadingDirection, formatTimeSafe, formatRelativeTime, isDeviceOnline } from '@/utils/helpers'
 
 type FilterType = 'all' | 'moving' | 'stationary' | 'online' | 'locked' | 'unlocked' | 'lowBattery'
 
@@ -67,15 +67,16 @@ export default function SmartLocksPage() {
 
       if (!matchSearch) return false
 
-      const isMoving = (d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true
+      const isOnline = isDeviceOnline(d)
+      const isMoving = isOnline && ((d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true)
 
       switch (filter) {
         case 'moving': return isMoving
-        case 'stationary': return !isMoving
-        case 'online': return d.status === 'online'
-        case 'locked': return Boolean(d.lock?.lockStatus)
-        case 'unlocked': return !d.lock?.lockStatus
-        case 'lowBattery': return Boolean(d.power?.isLowBattery || (d.power?.batteryPercentage ?? 100) < 20)
+        case 'stationary': return isOnline && !isMoving
+        case 'online': return isOnline
+        case 'locked': return isOnline && Boolean(d.lock?.lockStatus)
+        case 'unlocked': return isOnline && !d.lock?.lockStatus
+        case 'lowBattery': return isOnline && Boolean(d.power?.isLowBattery || (d.power?.batteryPercentage ?? 100) < 20)
         default: return true
       }
     })
@@ -227,7 +228,8 @@ export default function SmartLocksPage() {
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((d) => {
-            const isMoving = (d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true
+            const isOnline = isDeviceOnline(d)
+            const isMoving = isOnline && ((d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true)
 
             return (
               <Card
@@ -242,7 +244,7 @@ export default function SmartLocksPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-2 w-2">
-                        {d.status === 'online' ? (
+                        {isOnline ? (
                           <>
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -263,8 +265,8 @@ export default function SmartLocksPage() {
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <StatusBadge
-                      label={isMoving ? 'Moving' : 'Parked'}
-                      variant={isMoving ? 'success' : 'info'}
+                      label={isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}
+                      variant={isOnline ? (isMoving ? 'success' : 'info') : 'danger'}
                     />
                     <button
                       onClick={(e) => handleDelete(e, d)}
@@ -284,24 +286,34 @@ export default function SmartLocksPage() {
                       <Gauge className="h-3 w-3" /> Speed
                     </span>
                     <p className="font-mono text-xs font-black text-slate-800 dark:text-slate-200">
-                      {(d.gps?.speed || 0).toFixed(1)} <span className="text-[10px] font-normal text-slate-500">km/h</span>
+                      {isOnline ? (
+                        <>
+                          {(d.gps?.speed || 0).toFixed(1)} <span className="text-[10px] font-normal text-slate-500">km/h</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 font-mono">N/A</span>
+                      )}
                     </p>
                   </div>
 
                   <div className="space-y-0.5">
                     <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                      {d.lock?.lockStatus ? (
+                      {isOnline && d.lock?.lockStatus ? (
                         <Lock className="h-3 w-3 text-emerald-500" />
                       ) : (
-                        <Unlock className="h-3 w-3 text-amber-500" />
+                        <Unlock className="h-3 w-3 text-slate-400" />
                       )}
                       Lock Status
                     </span>
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {d.lock?.lockStatus ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">Locked</span>
+                      {isOnline ? (
+                        d.lock?.lockStatus ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">Locked</span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400">Unlocked</span>
+                        )
                       ) : (
-                        <span className="text-amber-600 dark:text-amber-400">Unlocked</span>
+                        <span className="text-slate-400 font-mono">N/A</span>
                       )}
                     </p>
                   </div>
@@ -311,7 +323,13 @@ export default function SmartLocksPage() {
                       <Navigation className="h-3 w-3" /> GPS Fix
                     </span>
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {d.gps?.satellites ?? 0} Sats <span className="text-[10px] font-normal text-slate-500">({d.gps?.fixType || '3D'})</span>
+                      {isOnline && d.gps?.satellites ? (
+                        <>
+                          {d.gps.satellites} Sats <span className="text-[10px] font-normal text-slate-500">({d.gps?.fixType || '3D'})</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 font-mono">N/A</span>
+                      )}
                     </p>
                   </div>
 
@@ -320,7 +338,13 @@ export default function SmartLocksPage() {
                       <Compass className="h-3 w-3" /> Heading
                     </span>
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {Math.round(d.gps?.heading || 0)}° <span className="text-[10px] font-normal text-slate-500">{getHeadingDirection(d.gps?.heading || 0)}</span>
+                      {isOnline && d.gps?.heading !== undefined ? (
+                        <>
+                          {Math.round(d.gps.heading)}° <span className="text-[10px] font-normal text-slate-500">{getHeadingDirection(d.gps.heading)}</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 font-mono">N/A</span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -329,7 +353,9 @@ export default function SmartLocksPage() {
                 <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
                   <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   <span className="truncate">
-                    {d.gps?.lastLocation || `${d.gps?.latitude?.toFixed(4)}, ${d.gps?.longitude?.toFixed(4)}`}
+                    {isOnline
+                      ? (d.gps?.lastLocation || `${d.gps?.latitude?.toFixed(4)}, ${d.gps?.longitude?.toFixed(4)}`)
+                      : 'Device Offline'}
                   </span>
                 </div>
 
@@ -338,23 +364,32 @@ export default function SmartLocksPage() {
                   <div className="flex items-center gap-1 text-slate-400">
                     <Clock className="h-3.5 w-3.5" />
                     <span className="font-medium text-[11px]">
-                      {formatRelativeTime(d.lastSeen)}
+                      {isOnline ? formatRelativeTime(d.lastSeen) : 'Device Offline'}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <BatteryIndicator
-                      level={d.power?.batteryPercentage ?? 100}
-                      size="sm"
-                      showLabel
-                    />
-                    <SignalIndicator
-                      rssi={d.cellular?.rssi ?? 25}
-                      signalQuality={d.cellular?.signalQuality ?? 4}
-                      signalText={d.cellular?.signal}
-                      size="sm"
-                      showText
-                    />
+                    {isOnline ? (
+                      <>
+                        <BatteryIndicator
+                          level={d.power?.batteryPercentage ?? 0}
+                          size="sm"
+                          showLabel
+                        />
+                        <SignalIndicator
+                          rssi={d.cellular?.rssi ?? 0}
+                          signalQuality={d.cellular?.signalQuality ?? 0}
+                          signalText={d.cellular?.signal}
+                          size="sm"
+                          showText
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-slate-400 font-mono text-[11px]">Battery: N/A</span>
+                        <span className="text-slate-400 text-[11px]">Offline</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -380,7 +415,8 @@ export default function SmartLocksPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.map((d) => {
-                  const isMoving = (d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true
+                  const isOnline = isDeviceOnline(d)
+                  const isMoving = isOnline && ((d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true)
 
                   return (
                     <tr
@@ -394,54 +430,68 @@ export default function SmartLocksPage() {
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge
-                          label={isMoving ? 'Moving' : 'Parked'}
-                          variant={isMoving ? 'success' : 'info'}
+                          label={isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}
+                          variant={isOnline ? (isMoving ? 'success' : 'info') : 'danger'}
                         />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 font-medium">
-                          {d.lock?.lockStatus ? (
-                            <>
-                              <Lock className="h-3.5 w-3.5 text-emerald-500" />
-                              <span className="text-emerald-600 dark:text-emerald-400">Locked</span>
-                            </>
+                          {isOnline ? (
+                            d.lock?.lockStatus ? (
+                              <>
+                                <Lock className="h-3.5 w-3.5 text-emerald-500" />
+                                <span className="text-emerald-600 dark:text-emerald-400">Locked</span>
+                              </>
+                            ) : (
+                              <>
+                                <Unlock className="h-3.5 w-3.5 text-amber-500" />
+                                <span className="text-amber-600 dark:text-amber-400">Unlocked</span>
+                              </>
+                            )
                           ) : (
-                            <>
-                              <Unlock className="h-3.5 w-3.5 text-amber-500" />
-                              <span className="text-amber-600 dark:text-amber-400">Unlocked</span>
-                            </>
+                            <span className="text-slate-400 font-mono">N/A</span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {(d.gps?.speed || 0).toFixed(1)} km/h
+                        {isOnline ? `${(d.gps?.speed || 0).toFixed(1)} km/h` : 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                        {d.gps?.satellites ?? 0} Sats ({d.gps?.fixType || '3D'})
+                        {isOnline && d.gps?.satellites ? `${d.gps.satellites} Sats (${d.gps.fixType || '3D'})` : 'N/A'}
                       </td>
                       <td className="px-4 py-3">
-                        <BatteryIndicator
-                          level={d.power?.batteryPercentage ?? 100}
-                          size="sm"
-                          showLabel
-                        />
+                        {isOnline ? (
+                          <BatteryIndicator
+                            level={d.power?.batteryPercentage ?? 0}
+                            size="sm"
+                            showLabel
+                          />
+                        ) : (
+                          <span className="text-slate-400 font-mono">N/A</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        <SignalIndicator
-                          rssi={d.cellular?.rssi ?? 25}
-                          signalQuality={d.cellular?.signalQuality ?? 4}
-                          signalText={d.cellular?.signal}
-                          size="sm"
-                          showText
-                        />
+                        {isOnline ? (
+                          <SignalIndicator
+                            rssi={d.cellular?.rssi ?? 0}
+                            signalQuality={d.cellular?.signalQuality ?? 0}
+                            signalText={d.cellular?.signal}
+                            size="sm"
+                            showText
+                          />
+                        ) : (
+                          <span className="text-slate-400">Offline</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-800 dark:text-slate-200">
-                          {formatRelativeTime(d.lastSeen)}
+                          {isOnline ? formatRelativeTime(d.lastSeen) : 'Device Offline'}
                         </p>
-                        <p className="font-mono text-[10px] text-slate-400">
-                          {formatTimeSafe(d.lastSeen, 'yyyy-MM-dd HH:mm:ss')}
-                        </p>
+                        {isOnline && d.lastSeen && (
+                          <p className="font-mono text-[10px] text-slate-400">
+                            {formatTimeSafe(d.lastSeen, 'yyyy-MM-dd HH:mm:ss')}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button

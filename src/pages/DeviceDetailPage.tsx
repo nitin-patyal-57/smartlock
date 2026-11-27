@@ -15,7 +15,6 @@ import {
   Satellite,
   Radio,
   Zap,
-  Activity,
   Cpu,
   RefreshCw,
   Clock,
@@ -30,6 +29,7 @@ import {
   formatRelativeTime,
   formatUptime,
   getHeadingDirection,
+  isDeviceOnline,
 } from '@/utils/helpers'
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -77,15 +77,14 @@ export default function DeviceDetailPage() {
   if (loading) return <LoadingSpinner message="Loading smartlock telemetry..." className="min-h-[60vh]" />
   if (error && !device) return <ErrorState message={error || 'Device not found'} onRetry={refetch} />
 
-  // Strictly enforce user-specified schema and fallback to REAL_DEVICE_867509082945058
   const base = REAL_DEVICE_867509082945058
-  const activeDev = device?.deviceId === base.deviceId && device?.device?.modelId === base.device.modelId ? device : null
+  const activeDev = device?.deviceId === base.deviceId && device?.device?.modelId === base.device.modelId ? device : device
 
   const d = {
     ...base,
     ...(activeDev || {}),
-    deviceId: base.deviceId,
-    deviceName: base.deviceName,
+    deviceId: activeDev?.deviceId || base.deviceId,
+    deviceName: activeDev?.deviceName || base.deviceName,
     device: {
       ...base.device,
       ...(activeDev?.device || {})
@@ -124,7 +123,9 @@ export default function DeviceDetailPage() {
     }
   }
 
-  const isMoving = isDeviceMoving(d as any)
+  // Authentic online/offline determination
+  const isOnline = isDeviceOnline(d as any)
+  const isMoving = isOnline && isDeviceMoving(d as any)
 
   return (
     <div className="space-y-6">
@@ -146,32 +147,52 @@ export default function DeviceDetailPage() {
               {/* Lock Status Pill Badge */}
               <div
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold border shadow-xs transition ${
-                  d.lock?.lockStatus
+                  !isOnline
+                    ? 'bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20'
+                    : d.lock?.lockStatus
                     ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
                     : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
                 }`}
               >
-                {d.lock?.lockStatus ? (
-                  <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                {isOnline ? (
+                  d.lock?.lockStatus ? (
+                    <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <Unlock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  )
                 ) : (
-                  <Unlock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  <Lock className="h-3.5 w-3.5 text-slate-400" />
                 )}
-                <span>{d.lock?.lockStatus ? 'Locked' : 'Unlocked'}</span>
+                <span>
+                  {isOnline ? (d.lock?.lockStatus ? 'Locked' : 'Unlocked') : 'N/A (Device Offline)'}
+                </span>
               </div>
 
-              {/* Moving / Parked Badge */}
+              {/* Status Badge: Moving / Parked / Offline */}
               <StatusBadge
-                label={isMoving ? 'Moving' : 'Parked'}
-                variant={isMoving ? 'success' : 'info'}
-                pulse={isMoving}
+                label={isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}
+                variant={isOnline ? (isMoving ? 'success' : 'info') : 'danger'}
+                pulse={isOnline && isMoving}
               />
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400 mt-1">
               <span className="font-mono">IMEI: {d.deviceId} &middot; Model: {d.device.modelId}</span>
-              <span className="inline-flex items-center gap-1 text-emerald-500 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <Clock className="h-3 w-3 animate-pulse" />
-                <span>Last Telemetry: {formatRelativeTime(d.lastSeen)} ({formatTimeSafe(d.lastSeen, 'HH:mm:ss')})</span>
+              <span
+                className={`inline-flex items-center gap-1 font-medium px-2 py-0.5 rounded-full border ${
+                  isOnline
+                    ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                    : 'text-slate-500 bg-slate-500/10 border-slate-500/20'
+                }`}
+              >
+                <Clock className={`h-3 w-3 ${isOnline ? 'animate-pulse' : ''}`} />
+                <span>
+                  {isOnline
+                    ? `Live Telemetry: ${formatRelativeTime(d.lastSeen)} (${formatTimeSafe(d.lastSeen, 'HH:mm:ss')})`
+                    : d.lastSeen
+                    ? `Device Offline (Last seen: ${formatRelativeTime(d.lastSeen)})`
+                    : 'Device Offline (No telemetry received)'}
+                </span>
               </span>
             </div>
           </div>
@@ -199,6 +220,7 @@ export default function DeviceDetailPage() {
       <DeviceLiveMapCard device={d as any} height="h-[460px]" />
 
       {/* Exact 6-Card Telemetry Grid Matching User Specification */}
+      {/* When device is OFF, every section displays N/A (no demo data) */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* 1. DEVICE INFORMATION */}
         <Card padding="md">
@@ -208,13 +230,13 @@ export default function DeviceDetailPage() {
           </h3>
           <div className="space-y-1">
             <InfoRow label="IMEI" value={<span className="font-mono text-xs">{d.device.imei || d.deviceId}</span>} />
-            <InfoRow label="Model ID" value={<span className="font-bold text-slate-900 dark:text-slate-100">{d.device.modelId}</span>} />
-            <InfoRow label="Serial Number" value={d.device.serialNumber || 'N/A'} />
-            <InfoRow label="App Version" value={d.device.appVersion || 'WM_BP_2.0.8'} />
-            <InfoRow label="SDK Version" value={d.device.sdkVersion || 'WM_SDK_C_260702'} />
-            <InfoRow label="Hardware Version" value={d.device.hardwareVersion || 'N/A'} />
-            <InfoRow label="Boot Reason" value={d.device.bootReason || 'N/A'} />
-            <InfoRow label="Uptime" value={formatUptime(d.device.uptime)} />
+            <InfoRow label="Model ID" value={<span className="font-bold text-slate-900 dark:text-slate-100">{d.device.modelId || 'WM_SB_1605'}</span>} />
+            <InfoRow label="Serial Number" value={isOnline && d.device.serialNumber ? d.device.serialNumber : 'N/A'} />
+            <InfoRow label="App Version" value={isOnline && d.device.appVersion ? d.device.appVersion : 'N/A'} />
+            <InfoRow label="SDK Version" value={isOnline && d.device.sdkVersion ? d.device.sdkVersion : 'N/A'} />
+            <InfoRow label="Hardware Version" value={isOnline && d.device.hardwareVersion ? d.device.hardwareVersion : 'N/A'} />
+            <InfoRow label="Boot Reason" value={isOnline && d.device.bootReason ? d.device.bootReason : 'N/A'} />
+            <InfoRow label="Uptime" value={isOnline && d.device.uptime ? formatUptime(d.device.uptime) : 'N/A'} />
           </div>
         </Card>
 
@@ -228,37 +250,55 @@ export default function DeviceDetailPage() {
             <InfoRow
               label="Battery Level"
               value={
-                <div className="flex items-center gap-2">
-                  <span className="font-bold">{d.power.batteryPercentage}%</span>
-                  <BatteryIndicator level={d.power.batteryPercentage} size="sm" />
-                </div>
+                isOnline && (d.power?.batteryPercentage ?? 0) > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{d.power.batteryPercentage}%</span>
+                    <BatteryIndicator level={d.power.batteryPercentage} size="sm" />
+                  </div>
+                ) : (
+                  <span className="text-slate-400 font-mono">N/A</span>
+                )
               }
             />
             <InfoRow
               label="Battery Voltage"
-              value={`${d.power.batteryVoltage} V (${d.power.batteryMv || 4075} mV)`}
+              value={
+                isOnline && (d.power?.batteryVoltage ?? 0) > 0
+                  ? `${d.power.batteryVoltage} V (${d.power.batteryMv || Math.round(d.power.batteryVoltage * 1000)} mV)`
+                  : 'N/A'
+              }
             />
             <InfoRow
               label="Charging State"
-              value={d.power.isCharging ? 'Charging (Active)' : 'Not Charging'}
+              value={
+                isOnline && d.power?.charging
+                  ? d.power.isCharging ? 'Charging (Active)' : 'Not Charging'
+                  : 'N/A'
+              }
             />
             <InfoRow
               label="USB Connected"
-              value={d.power.isUsbConnected ? 'Connected (Y)' : 'Disconnected (N)'}
+              value={
+                isOnline && d.power?.usb
+                  ? d.power.isUsbConnected ? 'Connected (Y)' : 'Disconnected (N)'
+                  : 'N/A'
+              }
             />
             <InfoRow
               label="External Power"
-              value={d.power.isExternalPower ? 'Active (Y)' : 'Inactive (N)'}
+              value={
+                isOnline && d.power?.extPower
+                  ? d.power.isExternalPower ? 'Active (Y)' : 'Inactive (N)'
+                  : 'N/A'
+              }
             />
-            <InfoRow label="Ext Power Voltage" value={d.power.extPowerVoltage || 'N/A'} />
+            <InfoRow label="Ext Power Voltage" value={isOnline && d.power?.extPowerVoltage ? d.power.extPowerVoltage : 'N/A'} />
             <InfoRow
               label="Low Battery Alert"
               value={
-                d.power.isLowBattery ? (
-                  <span className="text-red-500 font-bold">Alert (Low)</span>
-                ) : (
-                  'Normal'
-                )
+                isOnline && d.power?.lowBattery
+                  ? d.power.isLowBattery ? <span className="text-red-500 font-bold">Alert (Low)</span> : 'Normal'
+                  : 'N/A'
               }
             />
           </div>
@@ -274,35 +314,66 @@ export default function DeviceDetailPage() {
             <InfoRow
               label="Lock Status"
               value={
-                <span className={`font-bold ${d.lock.lockStatus ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {d.lock.lockStatus ? '🔒 LOCKED' : '🔓 UNLOCKED'}
-                </span>
+                isOnline && d.lock?.lockStatusStr ? (
+                  <span className={`font-bold ${d.lock.lockStatus ? 'text-emerald-500' : 'text-amber-500'}`}>
+                    {d.lock.lockStatus ? '🔒 LOCKED' : '🔓 UNLOCKED'}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-mono">N/A</span>
+                )
               }
             />
             <InfoRow
               label="Door Status"
               value={
-                <span className={`font-semibold ${d.lock.doorStatus ? 'text-red-400' : 'text-slate-300'}`}>
-                  {d.lock.doorStatus ? 'OPEN' : 'CLOSED'}
-                </span>
+                isOnline && d.lock?.doorStatusStr ? (
+                  <span className={`font-semibold ${d.lock.doorStatus ? 'text-red-400' : 'text-slate-300'}`}>
+                    {d.lock.doorStatus ? 'OPEN' : 'CLOSED'}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-mono">N/A</span>
+                )
               }
             />
-            <InfoRow label="Lock Motor Status" value={<span className="font-semibold text-emerald-400">{d.lock.lockMotorStatus || 'OK'}</span>} />
-            <InfoRow label="Motor Current" value={`${d.lock.motorCurrentMa ?? 420} mA`} />
+            <InfoRow
+              label="Lock Motor Status"
+              value={isOnline && d.lock?.lockMotorStatus ? <span className="font-semibold text-emerald-400">{d.lock.lockMotorStatus}</span> : 'N/A'}
+            />
+            <InfoRow
+              label="Motor Current"
+              value={isOnline && d.lock?.motorCurrentMa ? `${d.lock.motorCurrentMa} mA` : 'N/A'}
+            />
             <InfoRow
               label="Lock Position Sensor"
               value={
-                <span className="text-emerald-500 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {d.lock.lockPositionSensor || 'LOCKED'}
-                </span>
+                isOnline && d.lock?.lockPositionSensor ? (
+                  <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {d.lock.lockPositionSensor}
+                  </span>
+                ) : (
+                  'N/A'
+                )
               }
             />
-            <InfoRow label="Last Lock Time" value={formatTimeSafe(d.lock.lastLockTime)} />
-            <InfoRow label="Last Unlock Time" value={formatTimeSafe(d.lock.lastUnlockTime)} />
-            <InfoRow label="Last Unlock Method" value={<span className="font-bold text-indigo-400">{d.lock.lastUnlockMethod || 'REMOTE'}</span>} />
-            <InfoRow label="Unlock Count" value={d.lock.unlockCount ?? 24} />
-            <InfoRow label="Failed Unlock Count" value={<span className={(d.lock.failedUnlockCount ?? 0) > 0 ? 'text-amber-400 font-semibold' : ''}>{d.lock.failedUnlockCount ?? 2}</span>} />
+            <InfoRow label="Last Lock Time" value={isOnline && d.lock?.lastLockTime ? formatTimeSafe(d.lock.lastLockTime) : 'N/A'} />
+            <InfoRow label="Last Unlock Time" value={isOnline && d.lock?.lastUnlockTime ? formatTimeSafe(d.lock.lastUnlockTime) : 'N/A'} />
+            <InfoRow
+              label="Last Unlock Method"
+              value={isOnline && d.lock?.lastUnlockMethod ? <span className="font-bold text-indigo-400">{d.lock.lastUnlockMethod}</span> : 'N/A'}
+            />
+            <InfoRow
+              label="Unlock Count"
+              value={isOnline && d.lock?.unlockCount !== undefined && d.lock?.unlockCount !== null && d.lock?.unlockCount > 0 ? d.lock.unlockCount : 'N/A'}
+            />
+            <InfoRow
+              label="Failed Unlock Count"
+              value={
+                isOnline && d.lock?.failedUnlockCount !== undefined && d.lock?.failedUnlockCount !== null
+                  ? <span className={d.lock.failedUnlockCount > 0 ? 'text-amber-400 font-semibold' : ''}>{d.lock.failedUnlockCount}</span>
+                  : 'N/A'
+              }
+            />
           </div>
         </Card>
 
@@ -316,30 +387,50 @@ export default function DeviceDetailPage() {
             <InfoRow
               label="GPS Fix Status"
               value={
-                <span className="font-bold text-emerald-500">
-                  {d.gps.status || 'FIXED'} ({d.gps.fixType || '3D'})
-                </span>
+                isOnline && d.gps?.status ? (
+                  <span className="font-bold text-emerald-500">
+                    {d.gps.status} ({d.gps.fixType || '3D'})
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-mono">N/A</span>
+                )
               }
             />
-            <InfoRow label="Coordinates" value={<span className="font-mono text-xs">{d.gps.latitude.toFixed(6)}°, {d.gps.longitude.toFixed(6)}°</span>} />
-            <InfoRow label="Location" value={<span className="font-semibold text-blue-400">{d.gps.lastLocation || 'Mohali, Punjab'}</span>} />
+            <InfoRow
+              label="Coordinates"
+              value={
+                isOnline && d.gps?.latitude && d.gps?.longitude ? (
+                  <span className="font-mono text-xs">{d.gps.latitude.toFixed(6)}°, {d.gps.longitude.toFixed(6)}°</span>
+                ) : (
+                  'N/A'
+                )
+              }
+            />
+            <InfoRow
+              label="Location"
+              value={isOnline && d.gps?.lastLocation ? <span className="font-semibold text-blue-400">{d.gps.lastLocation}</span> : 'N/A'}
+            />
             <InfoRow
               label="Ground Speed"
-              value={<span className="font-mono font-bold">{d.gps.speed.toFixed(1)} km/h</span>}
+              value={isOnline && d.gps?.speed !== undefined ? <span className="font-mono font-bold">{d.gps.speed.toFixed(1)} km/h</span> : 'N/A'}
             />
             <InfoRow
               label="Course / Heading"
-              value={`${Math.round(d.gps.heading)}° (${getHeadingDirection(d.gps.heading)})`}
+              value={
+                isOnline && d.gps?.heading !== undefined
+                  ? `${Math.round(d.gps.heading)}° (${getHeadingDirection(d.gps.heading)})`
+                  : 'N/A'
+              }
             />
-            <InfoRow label="Altitude" value={`${d.gps.altitude.toFixed(1)} m`} />
+            <InfoRow label="Altitude" value={isOnline && d.gps?.altitude ? `${d.gps.altitude.toFixed(1)} m` : 'N/A'} />
             <InfoRow
               label="Satellites Tracked"
-              value={<span className="font-bold text-blue-400">{d.gps.satellites} Satellites</span>}
+              value={isOnline && d.gps?.satellites ? <span className="font-bold text-blue-400">{d.gps.satellites} Satellites</span> : 'N/A'}
             />
-            <InfoRow label="HDOP Precision" value={d.gps.hdop || 0.9} />
-            <InfoRow label="Accuracy" value={`±${d.gps.accuracy} m`} />
-            <InfoRow label="Fix Type" value={d.gps.fixType || '3D'} />
-            <InfoRow label="Last Fix Time" value={formatTimeSafe(d.gps.lastFix)} />
+            <InfoRow label="HDOP Precision" value={isOnline && d.gps?.hdop ? d.gps.hdop : 'N/A'} />
+            <InfoRow label="Accuracy" value={isOnline && d.gps?.accuracy ? `±${d.gps.accuracy} m` : 'N/A'} />
+            <InfoRow label="Fix Type" value={isOnline && d.gps?.fixType ? d.gps.fixType : 'N/A'} />
+            <InfoRow label="Last Fix Time" value={isOnline && d.gps?.lastFix ? formatTimeSafe(d.gps.lastFix) : 'N/A'} />
           </div>
         </Card>
 
@@ -352,35 +443,35 @@ export default function DeviceDetailPage() {
           <div className="space-y-1">
             <InfoRow
               label="Mobile Operator"
-              value={<span className="font-bold text-purple-400">{d.cellular.operator || 'JIO 4G'}</span>}
+              value={isOnline && d.cellular?.operator ? <span className="font-bold text-purple-400">{d.cellular.operator}</span> : 'N/A'}
             />
             <InfoRow
               label="Network Type"
-              value={d.cellular.networkType || 'LTE'}
+              value={isOnline && d.cellular?.networkType ? d.cellular.networkType : 'N/A'}
             />
             <InfoRow
               label="LTE Serving Band"
-              value={`Band ${d.cellular.band || '40'}`}
+              value={isOnline && d.cellular?.band ? `Band ${d.cellular.band}` : 'N/A'}
             />
             <InfoRow
               label="Signal Rating"
-              value={<span className="text-emerald-400 font-bold">{d.cellular.signal || 'EXCELLENT'}</span>}
+              value={isOnline && d.cellular?.signal ? <span className="text-emerald-400 font-bold">{d.cellular.signal}</span> : 'N/A'}
             />
             <InfoRow
               label="RSSI / RSRP"
-              value={`${d.cellular.rssi} dBm / ${d.cellular.rsrp} dBm`}
+              value={isOnline && d.cellular?.rssi ? `${d.cellular.rssi} dBm / ${d.cellular.rsrp} dBm` : 'N/A'}
             />
             <InfoRow
               label="RSRQ / SINR"
-              value={`${d.cellular.rsrq} dB / ${d.cellular.sinr || 0} dB`}
+              value={isOnline && d.cellular?.rsrq ? `${d.cellular.rsrq} dB / ${d.cellular.sinr || 0} dB` : 'N/A'}
             />
-            <InfoRow label="Cell ID / TAC" value={`${d.cellular.cellId} / ${d.cellular.tac}`} />
-            <InfoRow label="MCC / MNC" value={`${d.cellular.mcc} / ${d.cellular.mnc}`} />
+            <InfoRow label="Cell ID / TAC" value={isOnline && d.cellular?.cellId ? `${d.cellular.cellId} / ${d.cellular.tac}` : 'N/A'} />
+            <InfoRow label="MCC / MNC" value={isOnline && d.cellular?.mcc ? `${d.cellular.mcc} / ${d.cellular.mnc}` : 'N/A'} />
             <InfoRow
               label="IPv4 Address"
-              value={<span className="font-mono text-[11px]">{d.cellular.ip4 || d.cellular.ip || '10.38.65.70'}</span>}
+              value={isOnline && (d.cellular?.ip4 || d.cellular?.ip) ? <span className="font-mono text-[11px]">{d.cellular.ip4 || d.cellular.ip}</span> : 'N/A'}
             />
-            {d.cellular.ip6 && (
+            {d.cellular?.ip6 && isOnline && (
               <InfoRow
                 label="IPv6 Address"
                 value={<span className="font-mono text-[10px] break-all">{d.cellular.ip6}</span>}
@@ -388,7 +479,7 @@ export default function DeviceDetailPage() {
             )}
             <InfoRow
               label="SIM IMSI"
-              value={<span className="font-mono text-[11px]">{d.cellular.imsi || '405867153266129'}</span>}
+              value={isOnline && d.cellular?.imsi ? <span className="font-mono text-[11px]">{d.cellular.imsi}</span> : 'N/A'}
             />
           </div>
         </Card>
@@ -403,71 +494,105 @@ export default function DeviceDetailPage() {
             <InfoRow
               label="Keypad PIN Status"
               value={
-                <span className="font-semibold text-emerald-400">
-                  {(d.access as any)?.keypad?.status || 'OK'} &middot; Enabled ({(d.access as any)?.keypad?.count ?? 24} uses)
-                </span>
+                isOnline && (d.access as any)?.keypad?.status ? (
+                  <span className="font-semibold text-emerald-400">
+                    {(d.access as any).keypad.status} &middot; Enabled
+                  </span>
+                ) : (
+                  'N/A'
+                )
               }
             />
             <InfoRow
               label="Keypad Failed Attempts"
-              value={(d.access as any)?.keypad?.failedAttempts ?? 0}
+              value={isOnline && (d.access as any)?.keypad?.failedAttempts !== undefined ? (d.access as any).keypad.failedAttempts : 'N/A'}
             />
             <InfoRow
               label="Last Keypad Access"
-              value={formatTimeSafe((d.access as any)?.keypad?.lastAccess || (d.access as any)?.keypad?.lastUsed)}
+              value={
+                isOnline && ((d.access as any)?.keypad?.lastAccess || (d.access as any)?.keypad?.lastUsed)
+                  ? formatTimeSafe((d.access as any)?.keypad?.lastAccess || (d.access as any)?.keypad?.lastUsed)
+                  : 'N/A'
+              }
             />
             <InfoRow
               label="Tamper Status"
               value={
-                d.tamper?.tamperStatus ? (
-                  <span className="text-red-500 font-bold flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5" /> TAMPER ALERT
-                  </span>
+                isOnline ? (
+                  d.tamper?.tamperStatus ? (
+                    <span className="text-red-500 font-bold flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" /> TAMPER ALERT
+                    </span>
+                  ) : (
+                    <span className="text-emerald-500 font-semibold">Normal (Secure)</span>
+                  )
                 ) : (
-                  <span className="text-emerald-500 font-semibold">Normal (Secure)</span>
+                  'N/A'
                 )
               }
             />
             <InfoRow
               label="Device Motion State"
               value={
-                <span className={`font-bold ${d.accelerometer.motion ? 'text-emerald-400' : 'text-slate-400'}`}>
-                  {d.accelerometer.motion ? 'Active Motion' : 'Stationary'}
-                </span>
+                isOnline ? (
+                  <span className={`font-bold ${d.accelerometer?.motion ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {d.accelerometer?.motion ? 'Active Motion' : 'Stationary'}
+                  </span>
+                ) : (
+                  'N/A'
+                )
               }
             />
           </div>
 
           {/* 3-Axis Accelerometer Visual Bars */}
-          <div className="space-y-2 mb-3 border-t border-slate-100 dark:border-slate-800 pt-2.5">
-            <AxisBar label="X-Axis (Tilt)" value={d.accelerometer.x} color="bg-blue-500" />
-            <AxisBar label="Y-Axis (Pitch)" value={d.accelerometer.y} color="bg-emerald-500" />
-            <AxisBar label="Z-Axis (Vertical G)" value={d.accelerometer.z} color="bg-purple-500" />
-          </div>
+          {isOnline && (d.accelerometer?.x !== undefined || d.accelerometer?.y !== undefined || d.accelerometer?.z !== undefined) ? (
+            <div className="space-y-2 mb-3 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+              <AxisBar label="X-Axis (Tilt)" value={d.accelerometer.x || 0} color="bg-blue-500" />
+              <AxisBar label="Y-Axis (Pitch)" value={d.accelerometer.y || 0} color="bg-emerald-500" />
+              <AxisBar label="Z-Axis (Vertical G)" value={d.accelerometer.z || 0} color="bg-purple-500" />
+            </div>
+          ) : (
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-2 mb-3">
+              <InfoRow label="Accelerometer (3-Axis)" value="N/A" />
+            </div>
+          )}
 
           <div className="space-y-1">
             <InfoRow
               label="Driving Score"
               value={
-                <span className="font-bold text-emerald-500">
-                  {d.accelerometer.drivingScore ?? 91} / 100
-                </span>
+                isOnline && d.accelerometer?.drivingScore ? (
+                  <span className="font-bold text-emerald-500">
+                    {d.accelerometer.drivingScore} / 100
+                  </span>
+                ) : (
+                  'N/A'
+                )
               }
             />
             <InfoRow
               label="Harsh Driving Events"
               value={
-                <span className="text-xs">
-                  Braking: {d.accelerometer.harshBrakingCount ?? 2} &middot; Accel: {d.accelerometer.harshAccelerationCount ?? 1} &middot; Turns: {d.accelerometer.sharpTurnCount ?? 3} &middot; Impact: {d.accelerometer.impactCount ?? 0}
-                </span>
+                isOnline ? (
+                  <span className="text-xs">
+                    Braking: {d.accelerometer?.harshBrakingCount ?? 0} &middot; Accel: {d.accelerometer?.harshAccelerationCount ?? 0} &middot; Turns: {d.accelerometer?.sharpTurnCount ?? 0} &middot; Impact: {d.accelerometer?.impactCount ?? 0}
+                  </span>
+                ) : (
+                  'N/A'
+                )
               }
             />
             <InfoRow
               label="Real-Time Clock (RTC)"
               value={
-                <span className="font-mono text-[11px] text-slate-300">
-                  {formatTimeSafe(typeof d.rtc === 'object' ? d.rtc.rtcTime : d.rtc)}
-                </span>
+                isOnline && (typeof d.rtc === 'object' ? d.rtc?.rtcTime : d.rtc) ? (
+                  <span className="font-mono text-[11px] text-slate-300">
+                    {formatTimeSafe(typeof d.rtc === 'object' ? d.rtc.rtcTime : d.rtc)}
+                  </span>
+                ) : (
+                  'N/A'
+                )
               }
             />
           </div>

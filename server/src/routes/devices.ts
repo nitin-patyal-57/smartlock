@@ -193,15 +193,18 @@ router.get('/devices', (req: Request, res: Response) => {
   try {
     const db = getDb()
     const rows = db.prepare('SELECT * FROM devices ORDER BY updatedAt DESC').all()
+    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
 
     // Only include genuine SmartLock devices (exclude plain GPS trackers / soundboxes)
     const devices = rows
       .map((row: any) => {
         try {
+          const parsed = JSON.parse(row.data)
+          const isOnline = row.status === 'online' && row.lastSeen && row.lastSeen >= cutoff
           return {
-            ...JSON.parse(row.data),
-            status: row.status,
-            lastSeen: row.lastSeen,
+            ...parsed,
+            status: isOnline ? 'online' : 'offline',
+            lastSeen: row.lastSeen || '',
             deviceId: row.deviceId,
             deviceName: row.deviceName,
           }
@@ -228,98 +231,21 @@ router.get('/devices/:id', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Device not found' })
     }
 
+    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+    const isOnline = row.status === 'online' && row.lastSeen && row.lastSeen >= cutoff
+
     const parsed = JSON.parse(row.data)
-    // If device was previously stored with old tracker defaults, upgrade to smartlock schema
-    if (parsed.deviceId === '867509082945058' || parsed.device?.modelId === 'GW1NS-4') {
-      parsed.device = {
-        ...parsed.device,
-        modelId: 'WM_SB_1605',
-        appVersion: 'WM_BP_2.0.8',
-        sdkVersion: 'WM_SDK_C_260702',
-      }
-      if (parsed.cellular?.operator === 'IND airtel' || !parsed.cellular?.operator) {
-        parsed.cellular = {
-          ...parsed.cellular,
-          operator: 'JIO 4G',
-          band: '40',
-          rssi: 73,
-          rsrp: 35,
-          rsrq: 15,
-          cellId: '131860',
-          tac: '174',
-          mcc: '869',
-          mnc: '405',
-          ip4: '10.38.65.70',
-          ip6: '254.128.0.0.0.0.0.0.0.0.0.0.129.200.87.18',
-          imsi: '405867153266129',
-        }
-      }
-      if (parsed.gps?.latitude === 30.657035 || !parsed.gps?.latitude) {
-        parsed.gps = {
-          ...parsed.gps,
-          latitude: 30.704649,
-          longitude: 76.717873,
-          altitude: 315.5,
-          speed: 42.6,
-          heading: 128,
-          satellites: 14,
-          hdop: 0.9,
-          accuracy: 4.2,
-          lastLocation: 'Mohali, Punjab',
-          lastFix: '2026-09-15T10:40:21Z',
-        }
-      }
-      if (parsed.power?.batteryVoltage === 4.22 || !parsed.power?.batteryVoltage) {
-        parsed.power = {
-          ...parsed.power,
-          batteryVoltage: 4.08,
-          batteryPercentage: 94,
-          batteryMv: 4075,
-          usb: 'N',
-        }
-      }
-      if (!parsed.lock?.unlockCount || parsed.lock?.unlockCount === 1) {
-        parsed.lock = {
-          ...parsed.lock,
-          lockStatus: true,
-          doorStatus: false,
-          lockMotorStatus: 'OK',
-          motorCurrentMa: 420,
-          lockPositionSensor: 'LOCKED',
-          lastUnlockMethod: 'REMOTE',
-          unlockCount: 24,
-          failedUnlockCount: 2,
-          lastLockTime: '2026-09-15T10:20:15Z',
-          lastUnlockTime: '2026-09-15T09:45:10Z',
-          lockStatusStr: 'LOCKED',
-          doorStatusStr: 'CLOSED',
-        }
-      }
-      if (parsed.accelerometer?.drivingScore === '100' || parsed.accelerometer?.drivingScore === 100) {
-        parsed.accelerometer = {
-          ...parsed.accelerometer,
-          motion: true,
-          x: 0.04,
-          y: -0.02,
-          z: 1.01,
-          harshBrakingCount: 2,
-          harshAccelerationCount: 1,
-          sharpTurnCount: 3,
-          impactCount: 0,
-          drivingScore: 91,
-        }
-      }
+    parsed.deviceId = row.deviceId
+    parsed.deviceName = row.deviceName?.includes('GW1NS-4') ? `SmartLock-${row.deviceId.slice(-4)} (WM_SB_1605)` : row.deviceName
+    parsed.status = isOnline ? 'online' : 'offline'
+    parsed.lastSeen = row.lastSeen || ''
+
+    if (parsed.device) {
+      parsed.device.imei = row.deviceId
+      parsed.device.modelId = parsed.device.modelId || 'WM_SB_1605'
     }
 
-    const device = {
-      ...parsed,
-      status: row.status,
-      lastSeen: row.lastSeen,
-      deviceId: row.deviceId,
-      deviceName: row.deviceName?.includes('GW1NS-4') ? `SmartLock-${row.deviceId.slice(-4)} (WM_SB_1605)` : row.deviceName,
-    }
-
-    res.json(device)
+    res.json(parsed)
   } catch (error) {
     console.error('Error fetching device:', error)
     res.status(500).json({ error: 'Internal server error' })

@@ -13,6 +13,7 @@ import {
   Cpu, Wifi, WifiOff, AlertTriangle,
   Lock, Unlock, Activity, Shield
 } from 'lucide-react'
+import { isDeviceOnline } from '@/utils/helpers'
 
 function getBatteryColor(pct: number) {
   if (pct > 50) return '#10b981'
@@ -26,10 +27,12 @@ export default function OverviewPage() {
   const { alerts, loading: alertsLoading, error: alertsError, refetch: refetchAlerts } = useAlerts()
   const navigate = useNavigate()
 
-  const batteryData = useMemo(() => devices.map((d) => ({
-    name: d.deviceId,
-    battery: d.power.batteryPercentage,
-  })), [devices])
+  const batteryData = useMemo(() => devices
+    .filter((d) => isDeviceOnline(d) && (d.power?.batteryPercentage ?? 0) > 0)
+    .map((d) => ({
+      name: d.deviceId,
+      battery: d.power.batteryPercentage,
+    })), [devices])
 
   const recentEvents = useMemo(() => [...events]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -48,8 +51,8 @@ export default function OverviewPage() {
     )
   }
 
-  const onlineCount = devices.filter((d) => d.status === 'online').length
-  const offlineCount = devices.filter((d) => d.status === 'offline').length
+  const onlineCount = devices.filter((d) => isDeviceOnline(d)).length
+  const offlineCount = devices.filter((d) => !isDeviceOnline(d)).length
   const activeAlerts = alerts.filter((a) => !a.acknowledged)
   const criticalAlerts = activeAlerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').slice(0, 5)
 
@@ -178,45 +181,58 @@ export default function OverviewPage() {
       <Card padding="md">
         <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Device Overview</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {devices.map((device) => (
-            <div
-              key={device.deviceId}
-              onClick={() => navigate(`/locks/${device.deviceId}`)}
-              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 transition-all hover:shadow-md cursor-pointer dark:border-slate-700 dark:bg-slate-800"
-            >
-              <div className="relative flex-shrink-0">
-                {device.lock?.lockStatus ? (
-                  <Lock className="h-8 w-8 text-emerald-500" />
-                ) : (
-                  <Unlock className="h-8 w-8 text-amber-500" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {device.deviceName}
-                </p>
-                <p className="font-mono text-xs text-slate-400 truncate">
-                  {device.deviceId}
-                </p>
-                <div className="mt-1 flex items-center gap-2">
-                  <BatteryIndicator level={device.power?.batteryPercentage ?? 94} size="sm" />
-                  <span className="text-xs text-slate-500">{device.power?.batteryPercentage ?? 94}%</span>
+          {devices.map((device) => {
+            const isOnline = isDeviceOnline(device)
+            return (
+              <div
+                key={device.deviceId}
+                onClick={() => navigate(`/locks/${device.deviceId}`)}
+                className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 transition-all hover:shadow-md cursor-pointer dark:border-slate-700 dark:bg-slate-800"
+              >
+                <div className="relative flex-shrink-0">
+                  {isOnline ? (
+                    device.lock?.lockStatus ? (
+                      <Lock className="h-8 w-8 text-emerald-500" />
+                    ) : (
+                      <Unlock className="h-8 w-8 text-amber-500" />
+                    )
+                  ) : (
+                    <Lock className="h-8 w-8 text-slate-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {device.deviceName}
+                  </p>
+                  <p className="font-mono text-xs text-slate-400 truncate">
+                    {device.deviceId}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    {isOnline ? (
+                      <>
+                        <BatteryIndicator level={device.power?.batteryPercentage ?? 0} size="sm" />
+                        <span className="text-xs text-slate-500">{device.power?.batteryPercentage ?? 0}%</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-mono">N/A</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      isOnline ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                  />
+                  {isOnline ? (
+                    <SignalIndicator rssi={device.cellular?.rssi ?? 0} signalQuality={device.cellular?.signalQuality ?? 0} size="sm" />
+                  ) : (
+                    <span className="text-[10px] text-slate-400">Offline</span>
+                  )}
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    device.status === 'online'
-                      ? 'bg-emerald-500'
-                      : device.status === 'offline'
-                      ? 'bg-red-500'
-                      : 'bg-amber-500'
-                  }`}
-                />
-                <SignalIndicator rssi={device.cellular?.rssi ?? 73} signalQuality={device.cellular?.signalQuality ?? 5} size="sm" />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </Card>
 

@@ -89,15 +89,6 @@ const STORAGE_DELETED_KEY = 'deleted_smartlock_devices'
 export function hasLockOption(json: any): boolean {
   if (!json || typeof json !== 'object') return false
 
-  // Reject known plain GPS tracker models
-  if (
-    json.device?.modelId === 'GW1NS-4' ||
-    json.model_id === 'GW1NS-4' ||
-    json.modelId === 'GW1NS-4'
-  ) {
-    return false
-  }
-
   // Explicit type declaration
   if (
     json.isSmartLock === true ||
@@ -166,7 +157,7 @@ export function clearAllLocalData() {
       localStorage.removeItem(STORAGE_CUSTOM_KEY)
       localStorage.removeItem(STORAGE_DELETED_KEY)
     }
-  } catch {}
+  } catch { }
 }
 
 // Auto-purge stale demo entries on load
@@ -187,7 +178,7 @@ if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(cleaned))
       }
     }
-  } catch {}
+  } catch { }
 }
 
 export function getDeletedDeviceIds(): Set<string> {
@@ -199,7 +190,7 @@ export function getDeletedDeviceIds(): Set<string> {
       set.delete('867509082945058')
       return set
     }
-  } catch {}
+  } catch { }
   return new Set()
 }
 
@@ -214,7 +205,7 @@ export function markDeviceDeleted(deviceId: string) {
       const filtered = custom.filter((d) => d.deviceId !== deviceId)
       localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(filtered))
     }
-  } catch {}
+  } catch { }
 }
 
 export function getCustomDevicesFromStorage(): SmartLockDevice[] {
@@ -235,7 +226,7 @@ export function getCustomDevicesFromStorage(): SmartLockDevice[] {
           })
       }
     }
-  } catch {}
+  } catch { }
   return []
 }
 
@@ -252,7 +243,7 @@ export function saveCustomDeviceToStorage(device: SmartLockDevice) {
       deleted.delete(device.deviceId)
       localStorage.setItem(STORAGE_DELETED_KEY, JSON.stringify(Array.from(deleted)))
     }
-  } catch {}
+  } catch { }
 }
 
 function createDefaultDevice(cleanImei: string, name?: string, model?: string): SmartLockDevice {
@@ -441,7 +432,7 @@ export const deviceService = {
         headers: { 'Cache-Control': 'no-cache, no-store' },
         signal: AbortSignal.timeout(6000),
       })
-    } catch {}
+    } catch { }
     return true
   },
 
@@ -483,7 +474,10 @@ export const deviceService = {
     }
 
     if (!deleted.has(REAL_DEVICE_867509082945058.deviceId)) {
-      deviceMap.set(REAL_DEVICE_867509082945058.deviceId, REAL_DEVICE_867509082945058)
+      const existing = deviceMap.get(REAL_DEVICE_867509082945058.deviceId)
+      if (!existing || existing.device?.modelId === 'GW1NS-4') {
+        deviceMap.set(REAL_DEVICE_867509082945058.deviceId, REAL_DEVICE_867509082945058)
+      }
     }
 
     const list = Array.from(deviceMap.values())
@@ -492,18 +486,19 @@ export const deviceService = {
         if (d.deviceId === REAL_DEVICE_867509082945058.deviceId) {
           return {
             ...REAL_DEVICE_867509082945058,
+            ...d,
             deviceId: d.deviceId,
             deviceName: d.deviceName || REAL_DEVICE_867509082945058.deviceName
           }
         }
         return d
       })
-    return list.sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
+    return list.sort((a, b) => new Date(b.lastSeen || 0).getTime() - new Date(a.lastSeen || 0).getTime())
   },
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
     if (!id || getDeletedDeviceIds().has(id)) return undefined
-    if (id === REAL_DEVICE_867509082945058.deviceId || id === '861185084188827' || id === '867787064208584') {
+    if (id === '861185084188827' || id === '867787064208584') {
       return REAL_DEVICE_867509082945058
     }
     if (isIgnoredDevice(id)) return undefined
@@ -525,25 +520,11 @@ export const deviceService = {
     }
 
     if (devFromServer) {
-      if ((id === REAL_DEVICE_867509082945058.deviceId || devFromServer.device?.modelId === 'GW1NS-4') && devFromServer.device?.modelId !== 'WM_SB_1605') {
-        return {
-          ...REAL_DEVICE_867509082945058,
-          deviceId: id,
-          deviceName: devFromServer.deviceName?.includes('GW1NS-4') ? `SmartLock-${id.slice(-4)} (WM_SB_1605)` : devFromServer.deviceName
-        }
-      }
       return devFromServer
     }
 
     const custom = getCustomDevicesFromStorage().find((d) => d.deviceId === id)
     if (custom) {
-      if (custom.device?.modelId === 'GW1NS-4' || id === REAL_DEVICE_867509082945058.deviceId) {
-        return {
-          ...REAL_DEVICE_867509082945058,
-          deviceId: id,
-          deviceName: custom.deviceName?.includes('GW1NS-4') ? `SmartLock-${id.slice(-4)} (WM_SB_1605)` : custom.deviceName
-        }
-      }
       return custom
     }
 
