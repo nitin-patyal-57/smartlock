@@ -13,6 +13,7 @@ import {
   isDeviceMoving,
 } from './mapLayers'
 import { MapLayerSwitcher } from './MapLayerSwitcher'
+import { isDeviceOnline } from '@/utils/helpers'
 
 interface DeviceLiveMapCardProps {
   device: SmartLockDevice
@@ -66,14 +67,15 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
   }, [hasGps, device.gps?.latitude, device.gps?.longitude])
 
   // Real-time motion detection from authentic hardware metrics
-  const speed = device.gps?.speed || 0
-  const heading = device.gps?.heading || 0
-  const motionDetected = Boolean(device.accelerometer?.motion)
-  const isMoving = isDeviceMoving(device)
+  const isOnline = isDeviceOnline(device)
+  const speed = isOnline ? (device.gps?.speed || 0) : 0
+  const heading = isOnline ? (device.gps?.heading || 0) : 0
+  const motionDetected = isOnline && Boolean(device.accelerometer?.motion)
+  const isMoving = isOnline && isDeviceMoving(device)
 
   // Accumulate authentic breadcrumb trail as real GPS coordinates arrive
   useEffect(() => {
-    if (!hasGps) return
+    if (!hasGps || !isOnline) return
 
     setTrail((prev) => {
       if (prev.length === 0) return [pos]
@@ -85,18 +87,18 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
       }
       return prev
     })
-  }, [hasGps, pos])
+  }, [hasGps, isOnline, pos])
 
   const activeLayerConfig = MAP_LAYERS[currentLayer] || MAP_LAYERS['google-streets']
 
-  // Marker icon: Animated 3D Navigation Arrow when moving, Parked Lock Pin when stationary
+  // Marker icon: Animated 3D Navigation Arrow when moving, Parked Lock Pin when stationary/offline
   const markerIcon = useMemo(() => {
     if (!hasGps) return undefined
-    if (isMoving) {
+    if (isOnline && isMoving) {
       return createMovingVehicleMarker(heading, speed, device.deviceName)
     }
-    return createStationaryMarker(device.status, device.lock?.lockStatus)
-  }, [hasGps, isMoving, heading, speed, device.deviceName, device.status, device.lock?.lockStatus])
+    return createStationaryMarker(isOnline ? device.status : 'offline', isOnline ? Boolean(device.lock?.lockStatus) : false)
+  }, [hasGps, isOnline, isMoving, heading, speed, device.deviceName, device.status, device.lock?.lockStatus])
 
   if (!hasGps) {
     return (
@@ -118,49 +120,68 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
       <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
         {/* Left: Dynamic Real-Time Moving vs Stationary Status Pill */}
         <div className="pointer-events-auto flex items-center gap-2">
-          {isMoving ? (
-            <div className="flex items-center gap-2.5 rounded-xl bg-slate-900/95 px-3.5 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md border border-emerald-500/40">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-400 font-extrabold uppercase tracking-wide">
-                  ● DEVICE IS MOVING
+          {isOnline ? (
+            isMoving ? (
+              <div className="flex items-center gap-2.5 rounded-xl bg-slate-900/95 px-3.5 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md border border-emerald-500/40">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                 </span>
-                <span className="text-slate-500">|</span>
-                <span className="text-white font-mono text-sm font-black">
-                  {speed.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">km/h</span>
-                </span>
-                <span className="text-slate-500">|</span>
-                <span className="text-slate-300 font-mono text-xs flex items-center gap-1">
-                  <Compass className="h-3 w-3 text-blue-400" />
-                  {Math.round(heading)}°
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-400 font-extrabold uppercase tracking-wide">
+                    ● DEVICE IS MOVING
+                  </span>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-white font-mono text-sm font-black">
+                    {speed.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">km/h</span>
+                  </span>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300 font-mono text-xs flex items-center gap-1">
+                    <Compass className="h-3 w-3 text-blue-400" />
+                    {Math.round(heading)}°
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2.5 rounded-xl bg-slate-900/95 px-3.5 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md border border-blue-500/40">
+                <span className="h-3 w-3 rounded-full bg-blue-400"></span>
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-300 font-extrabold uppercase tracking-wide">
+                    ○ DEVICE IS STATIONARY / PARKED
+                  </span>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300 font-mono text-xs">
+                    0.0 km/h (At Rest)
+                  </span>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-400 text-[11px] font-medium flex items-center gap-1">
+                    {device.lock?.lockStatus ? (
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <Lock className="h-3 w-3" /> Locked
+                      </span>
+                    ) : (
+                      <span className="text-amber-400 flex items-center gap-1">
+                        <Unlock className="h-3 w-3" /> Unlocked
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )
           ) : (
-            <div className="flex items-center gap-2.5 rounded-xl bg-slate-900/95 px-3.5 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md border border-blue-500/40">
-              <span className="h-3 w-3 rounded-full bg-blue-400"></span>
+            <div className="flex items-center gap-2.5 rounded-xl bg-slate-900/95 px-3.5 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md border border-slate-700">
+              <span className="h-3 w-3 rounded-full bg-slate-500"></span>
               <div className="flex items-center gap-2">
-                <span className="text-blue-300 font-extrabold uppercase tracking-wide">
-                  ○ DEVICE IS STATIONARY / PARKED
+                <span className="text-slate-400 font-extrabold uppercase tracking-wide">
+                  ○ DEVICE IS OFFLINE
                 </span>
                 <span className="text-slate-500">|</span>
                 <span className="text-slate-300 font-mono text-xs">
-                  0.0 km/h (At Rest)
+                  Speed: N/A
                 </span>
                 <span className="text-slate-500">|</span>
-                <span className="text-slate-400 text-[11px] font-medium flex items-center gap-1">
-                  {device.lock?.lockStatus ? (
-                    <span className="text-emerald-400 flex items-center gap-1">
-                      <Lock className="h-3 w-3" /> Locked
-                    </span>
-                  ) : (
-                    <span className="text-amber-400 flex items-center gap-1">
-                      <Unlock className="h-3 w-3" /> Unlocked
-                    </span>
-                  )}
+                <span className="text-slate-400 text-[11px] font-medium">
+                  Tracking Paused
                 </span>
               </div>
             </div>
@@ -168,9 +189,9 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
 
           {/* Accelerometer Vibration / Motion Detection Badge */}
           <div className="hidden sm:flex items-center gap-1.5 rounded-xl bg-slate-900/90 px-3 py-2 text-[11px] font-medium text-slate-300 shadow-md backdrop-blur-md border border-slate-700/60">
-            <Activity className={`h-3.5 w-3.5 ${motionDetected ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+            <Activity className={`h-3.5 w-3.5 ${isOnline && motionDetected ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
             <span>
-              {motionDetected ? 'Motion Sensor: Active' : 'Motion: At Rest (No Vibration)'}
+              {isOnline ? (motionDetected ? 'Motion Sensor: Active' : 'Motion: At Rest') : 'Motion Sensor: N/A'}
             </span>
           </div>
         </div>
@@ -258,10 +279,11 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
                 </div>
                 <div className="mt-1.5 space-y-1 text-slate-600 font-mono text-[11px]">
                   <p>IMEI: {device.deviceId}</p>
-                  <p>Speed: {speed.toFixed(1)} km/h</p>
-                  <p>Heading: {Math.round(heading)}°</p>
-                  <p>Coordinates: {pos[0].toFixed(5)}, {pos[1].toFixed(5)}</p>
-                  <p>Lock: {device.lock?.lockStatus ? '🔒 Locked' : '🔓 Unlocked'}</p>
+                  <p>Status: {isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}</p>
+                  <p>Speed: {isOnline ? `${speed.toFixed(1)} km/h` : 'N/A'}</p>
+                  <p>Heading: {isOnline ? `${Math.round(heading)}°` : 'N/A'}</p>
+                  <p>Coordinates: {isOnline ? `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}` : 'N/A'}</p>
+                  <p>Lock: {isOnline ? (device.lock?.lockStatus ? '🔒 Locked' : '🔓 Unlocked') : 'N/A (Offline)'}</p>
                 </div>
               </div>
             </Popup>
@@ -272,29 +294,29 @@ export function DeviceLiveMapCard({ device, height = 'h-[440px]' }: DeviceLiveMa
       {/* Bottom Floating Telemetry Overlay */}
       <div className="absolute bottom-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-900/95 px-4 py-2 text-xs font-medium text-slate-200 shadow-xl backdrop-blur-md border border-slate-800">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 font-mono text-emerald-400">
-            <MapPin className="h-3.5 w-3.5 text-rose-500" />
-            {pos[0].toFixed(6)}, {pos[1].toFixed(6)}
+          <span className="flex items-center gap-1.5 font-mono text-slate-300">
+            <MapPin className="h-3.5 w-3.5 text-slate-400" />
+            {isOnline ? `${pos[0].toFixed(6)}, ${pos[1].toFixed(6)}` : 'Last Fix (Offline)'}
           </span>
-          <span className="hidden sm:flex items-center gap-1 text-slate-300">
-            Alt: {device.gps?.altitude || 0}m
+          <span className="hidden sm:flex items-center gap-1 text-slate-400">
+            Alt: {isOnline && device.gps?.altitude ? `${device.gps.altitude}m` : 'N/A'}
           </span>
-          <span className="flex items-center gap-1 text-amber-400">
+          <span className="flex items-center gap-1 text-slate-400">
             <Satellite className="h-3.5 w-3.5" />
-            {device.gps?.satellites || 0} Sats ({device.gps?.fixType || '3D'})
+            {isOnline && device.gps?.satellites ? `${device.gps.satellites} Sats (${device.gps?.fixType || '3D'})` : 'GNSS: N/A'}
           </span>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-slate-300">
-            <Battery className="h-3.5 w-3.5 text-emerald-400" />
-            {device.power?.batteryPercentage ?? 94}% ({device.power?.batteryVoltage ?? '4.08'}V)
+          <span className="flex items-center gap-1 text-slate-400">
+            <Battery className="h-3.5 w-3.5 text-slate-400" />
+            Battery: {isOnline && (device.power?.batteryPercentage ?? 0) > 0 ? `${device.power.batteryPercentage}%` : 'N/A'}
           </span>
           <span className="hidden md:flex items-center gap-1 text-slate-400 font-mono text-[11px]">
-            <Wifi className="h-3.5 w-3.5 text-cyan-400" />
-            {device.cellular?.operator || 'JIO 4G'}
+            <Wifi className="h-3.5 w-3.5 text-slate-400" />
+            Carrier: {isOnline && device.cellular?.operator ? device.cellular.operator : 'Offline'}
           </span>
-          {trail.length > 1 && (
+          {isOnline && trail.length > 1 && (
             <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-full">
               {trail.length} GPS Points Plotted
             </span>

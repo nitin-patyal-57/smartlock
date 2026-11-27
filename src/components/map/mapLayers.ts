@@ -249,11 +249,14 @@ export function createStationaryMarker(status: string, lockStatus: boolean) {
  * Check whether a device is currently moving based on motion sensors, speed, and status.
  */
 export function isDeviceMoving(device: {
+  status?: string;
+  lastSeen?: string;
   gps?: { speed?: number };
   accelerometer?: { motion?: boolean };
   trip?: { vehicleStatus?: string };
 }): boolean {
   if (!device) return false
+  if (device.status === 'offline') return false
   const speed = device.gps?.speed || 0
   const motion = Boolean(device.accelerometer?.motion)
   const tripMoving = device.trip?.vehicleStatus === 'moving'

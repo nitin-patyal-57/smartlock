@@ -127,6 +127,17 @@ export default function DeviceDetailPage() {
   const isOnline = isDeviceOnline(d as any)
   const isMoving = isOnline && isDeviceMoving(d as any)
 
+  // When offline, guarantee telemetry numbers in d are zeroed / offline
+  if (!isOnline) {
+    if (d.gps) {
+      d.gps.speed = 0
+    }
+    if (d.accelerometer) {
+      d.accelerometer.motion = false
+    }
+    d.status = 'offline'
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
