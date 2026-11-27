@@ -240,7 +240,7 @@ export default function DeviceDetailPage() {
           </h3>
           <div className="space-y-1">
             <InfoRow label="IMEI" value={<span className="font-mono text-xs">{d.device.imei || d.deviceId}</span>} />
-            <InfoRow label="Model ID" value={<span className="font-bold text-slate-900 dark:text-slate-100">{d.device.modelId || 'WM_SB_1605'}</span>} />
+            <InfoRow label="Model ID" value={<span className="font-bold text-slate-900 dark:text-slate-100">{d.device.modelId || 'GW1NS-4'}</span>} />
             <InfoRow label="Serial Number" value={isOnline && d.device.serialNumber ? d.device.serialNumber : 'N/A'} />
             <InfoRow label="App Version" value={isOnline && d.device.appVersion ? d.device.appVersion : 'N/A'} />
             <InfoRow label="SDK Version" value={isOnline && d.device.sdkVersion ? d.device.sdkVersion : 'N/A'} />

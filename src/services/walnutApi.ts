@@ -483,95 +483,11 @@ export function createRegisteredDevice(imei: string, index = 0): SmartLockDevice
   }
 }
 
+// Deprecated: All telemetry is ingested via direct MQTT broker subscriptions
 export async function fetchWalnutDevices(): Promise<SmartLockDevice[]> {
-  const apiKey = config.walnut.apiKey
-  const imeiConfig: string = String(config.walnut.imei || '')
-
-  if (!apiKey || !imeiConfig) {
-    throw new Error('Walnut API key or IMEI not configured')
-  }
-
-  // Support comma/semicolon-separated list of IMEIs
-  const imeis: string[] = imeiConfig
-    .split(/[,;\s]+/)
-    .map((s: string) => s.trim())
-    .filter(Boolean)
-
-  if (imeis.length === 0) return []
-
-  const devices: SmartLockDevice[] = []
-
-  const results = await Promise.all(
-    imeis.map(async (imei: string, index: number) => {
-      try {
-        const response = await fetch(config.walnut.apiUrl, {
-          method: 'POST',
-          headers: {
-            'x-api-key': apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ imei }),
-        })
-
-        if (!response.ok) {
-          console.warn(`Walnut API error ${response.status} for IMEI: ${imei}`)
-          return [createRegisteredDevice(imei, index)]
-        }
-
-        const result = await response.json()
-
-        if (result.status === 'success' && Array.isArray(result.data) && result.data.length > 0) {
-          return result.data.map((w: WalnutDevice, subIndex: number) =>
-            mapToSmartLockDevice(w, index + subIndex)
-          )
-        }
-
-        // If success but data is empty [] (no logs recorded in DB yet for this IMEI),
-        // show the registered device on the dashboard with waiting status
-        return [createRegisteredDevice(imei, index)]
-      } catch (err) {
-        console.warn(`Failed to fetch Walnut device ${imei}:`, err)
-        return [createRegisteredDevice(imei, index)]
-      }
-    })
-  )
-
-  results.forEach((deviceList) => {
-    devices.push(...deviceList)
-  })
-
-  return devices
+  return []
 }
 
-export async function fetchWalnutDeviceByImei(imei: string): Promise<SmartLockDevice | undefined> {
-  const apiKey = config.walnut.apiKey
-  if (!apiKey) {
-    throw new Error('Walnut API key not configured')
-  }
-
-  try {
-    const response = await fetch(config.walnut.apiUrl, {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ imei }),
-    })
-
-    if (!response.ok) {
-      return createRegisteredDevice(imei)
-    }
-
-    const result = await response.json()
-
-    if (result.status === 'success' && Array.isArray(result.data) && result.data.length > 0) {
-      return mapToSmartLockDevice(result.data[0], 0)
-    }
-
-    return createRegisteredDevice(imei)
-  } catch (err) {
-    console.warn(`Failed to fetch Walnut device by IMEI ${imei}:`, err)
-    return createRegisteredDevice(imei)
-  }
+export async function fetchWalnutDeviceByImei(_imei: string): Promise<SmartLockDevice | undefined> {
+  return undefined
 }

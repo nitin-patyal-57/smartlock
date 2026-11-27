@@ -63,6 +63,7 @@ async function fetchActivityFromFirebase(deviceId?: string): Promise<ActivityEve
 }
 
 export const DEMO_DEVICE_IDS = new Set([
+  '867509082945058', // Purged SmartLock-5058
   '861185084122693', // GPS Tracker confirmed by user (first card)
   '861185084122719', // GPS Tracker confirmed by user (third card)
   '861185084200101',
@@ -136,6 +137,7 @@ export function isIgnoredDevice(id: string): boolean {
   if (!id) return true
   const clean = id.trim()
   if (
+    clean === '867509082945058' || // Purged SmartLock-5058
     clean === '861185084122693' || // First card: GPS Tracker confirmed by user
     clean === '861185084122719' || // Third card: GPS Tracker confirmed by user
     clean === '861185084200101' || // GPS Tracker
@@ -153,6 +155,8 @@ export function clearAllLocalData() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_CUSTOM_KEY)
       localStorage.removeItem(STORAGE_DELETED_KEY)
+      localStorage.removeItem('walnut_imei')
+      localStorage.removeItem('walnut_api_key')
     }
   } catch { }
 }
@@ -160,11 +164,9 @@ export function clearAllLocalData() {
 // One-time clear of legacy cached devices from localStorage to guarantee 100% sync with cleared server DB
 if (typeof window !== 'undefined') {
   try {
-    const SYNC_CLEARED_KEY = 'smartlock_clean_state_v4'
+    const SYNC_CLEARED_KEY = 'smartlock_clean_state_v5'
     if (!localStorage.getItem(SYNC_CLEARED_KEY)) {
-      localStorage.removeItem(STORAGE_CUSTOM_KEY)
-      localStorage.removeItem(STORAGE_DELETED_KEY)
-      localStorage.removeItem('walnut_imei')
+      clearAllLocalData()
       localStorage.setItem(SYNC_CLEARED_KEY, 'true')
     }
   } catch { }

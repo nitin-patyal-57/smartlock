@@ -3,13 +3,12 @@ import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useTheme } from '@/context/ThemeContext'
 import { useRefresh } from '@/context/RefreshContext'
+import { deviceService } from '@/services/deviceService'
 import {
   Settings,
   Bell,
   Monitor,
-  Key,
   Database,
-  Globe,
   Mail,
   Smartphone,
   BellRing,
@@ -18,7 +17,9 @@ import {
   Battery,
   MapPin,
   Wifi,
-  RefreshCw,
+  Radio,
+  Trash2,
+  Check,
 } from 'lucide-react'
 
 interface ToggleProps {
@@ -64,18 +65,21 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState('America/New_York')
   const [compactMode, setCompactMode] = useState(false)
   const [defaultMapView, setDefaultMapView] = useState('street')
-  const [walnutImei, setWalnutImei] = useState(() => {
-    return (typeof window !== 'undefined' && localStorage.getItem('walnut_imei')) || import.meta.env.VITE_WALNUT_IMEI || '861185084122685'
-  })
-  const [savedSuccess, setSavedSuccess] = useState(false)
+  const [clearingDb, setClearingDb] = useState(false)
+  const [clearSuccess, setClearSuccess] = useState(false)
 
-  const handleSaveImei = () => {
-    localStorage.setItem('walnut_imei', walnutImei.trim())
-    setSavedSuccess(true)
-    setTimeout(() => {
-      setSavedSuccess(false)
-      window.location.reload()
-    }, 800)
+  const handleClearAllDevices = async () => {
+    if (!window.confirm('Are you sure you want to clear all devices and reset the local/server database?')) return
+    setClearingDb(true)
+    try {
+      await deviceService.clearAllDevices()
+      setClearSuccess(true)
+      setTimeout(() => {
+        window.location.reload()
+      }, 700)
+    } catch {
+      setClearingDb(false)
+    }
   }
 
   const [notifications, setNotifications] = useState({
@@ -252,78 +256,80 @@ export default function SettingsPage() {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Walnut IoT & API Configuration</h2>
+            <Radio className="h-5 w-5 text-emerald-500" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">AWS IoT Core MQTT Broker</h2>
           </div>
-          <StatusBadge label="Live API" variant="success" pulse />
+          <StatusBadge label="Broker Active" variant="success" pulse />
         </div>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Target IMEI(s)</label>
-            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-              Enter one or multiple device IMEIs separated by commas (e.g. 861185084122685)
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={walnutImei}
-                onChange={e => setWalnutImei(e.target.value)}
-                placeholder="861185084122685"
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
-              <button
-                type="button"
-                onClick={handleSaveImei}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
-              >
-                {savedSuccess ? 'Saved!' : 'Save & Refresh'}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">API Endpoint</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Broker Endpoint</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value="https://dev.walnutmedical.ai/api/soundbox/smart_logs"
+                value="avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com"
                 disabled
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
               />
-              <StatusBadge label="Connected" variant="success" />
+              <StatusBadge label="Port 8883" variant="neutral" />
             </div>
-          </div>
-          <div className="flex items-center justify-between py-3">
-            <div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Auto Refresh</label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Automatically refresh data every {refreshInterval} seconds
-              </p>
-            </div>
-            <button
-              onClick={toggleAutoRefresh}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                isAutoRefreshEnabled ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-600'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  isAutoRefreshEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Polling Interval</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Protocol & Security</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value={`${refreshInterval}s`}
+                value="MQTTS (TLS 1.2 Mutual Certificate Authentication)"
                 disabled
-                className="w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
               />
-              <StatusBadge label={isAutoRefreshEnabled ? 'Active' : 'Paused'} variant={isAutoRefreshEnabled ? 'success' : 'warning'} />
+              <StatusBadge label="TLS Secured" variant="success" />
             </div>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Active Telemetry Topic Pattern</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value="soundbox_dev/{imei}/metrics"
+                disabled
+                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              />
+              <StatusBadge label="Subscribed" variant="success" />
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-4 flex items-center gap-2">
+          <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Database & Storage Management</h2>
+        </div>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Reset all stored telemetry, clear local device cache, and wipe the server database. Newly registered smart lock devices will stream live metrics directly from the MQTT broker.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleClearAllDevices}
+            disabled={clearingDb || clearSuccess}
+            className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-rose-700 transition disabled:opacity-50"
+          >
+            {clearSuccess ? (
+              <>
+                <Check className="h-4 w-4" />
+                Cleared! Reloading...
+              </>
+            ) : clearingDb ? (
+              'Clearing Database...'
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                Clear Database & Reset All Devices
+              </>
+            )}
+          </button>
         </div>
       </Card>
 
@@ -334,13 +340,13 @@ export default function SettingsPage() {
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
           <div className="flex items-center gap-3">
-            <StatusBadge label="Walnut IoT Live" variant="success" size="md" pulse />
+            <StatusBadge label="Pure Real-Time MQTT" variant="success" size="md" pulse />
             <div>
               <p className="text-sm font-medium text-slate-900 dark:text-white">
-                Live Integration with Walnut Medical Soundbox & Smart Lock API
+                Direct Telemetry Stream from AWS IoT Core MQTT Broker
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Data is actively fetched from <code className="text-xs bg-emerald-100 dark:bg-emerald-950 px-1 py-0.5 rounded">https://dev.walnutmedical.ai</code> for configured IMEI numbers (including {walnutImei}).
+                All device telemetry, GPS coordinates, lock status, door sensor states, and motion diagnostics are streamed in real time over MQTT topics (<code className="text-xs bg-emerald-100 dark:bg-emerald-950 px-1 py-0.5 rounded">soundbox_dev/&#123;imei&#125;/metrics</code>) through WebSocket. No external REST API or polling endpoint is used.
               </p>
             </div>
           </div>

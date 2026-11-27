@@ -241,7 +241,7 @@ router.get('/devices/:id', (req: Request, res: Response) => {
 
     if (parsed.device) {
       parsed.device.imei = row.deviceId
-      parsed.device.modelId = parsed.device.modelId || (row.deviceId === '861185084122685' ? 'GW1NS-4' : 'WM_SB_1605')
+      parsed.device.modelId = parsed.device.modelId || 'GW1NS-4'
     }
 
     res.json(parsed)

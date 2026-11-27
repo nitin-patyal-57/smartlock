@@ -361,7 +361,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
     lastSeen: now,
     device: {
       imei,
-      modelId: dev.model_id || 'WM_SB_1605',
+      modelId: dev.model_id || 'GW1NS-4',
       serialNumber: dev.serial_no || `SN-${imei.slice(-6)}`,
       appVersion: dev.app_v || 'WM_BP_2.0.8',
       sdkVersion: dev.sdk_v || 'WM_SDK_C_260702',
@@ -767,6 +767,7 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
  * Seed initial device entries if not present
  */
 export const GPS_TRACKER_IMEIS = new Set([
+  '867509082945058', // Purged SmartLock-5058
   '861185084122693', // First card: WEGW GPS Tracker
   '861185084122719', // Third card: WEGW GPS Tracker
   '861185084200101',

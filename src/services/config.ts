@@ -35,14 +35,15 @@ export const config = {
     }
     return import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
   },
-  // Walnut Medical API config
-  walnut: {
-    get apiKey() {
-      return (typeof window !== 'undefined' && localStorage.getItem('walnut_api_key')) || import.meta.env.VITE_WALNUT_API_KEY || ''
+  // AWS IoT Core MQTT Configuration
+  mqtt: {
+    brokerUrl: 'mqtts://avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com:8883',
+    endpoint: 'avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com',
+    port: 8883,
+    protocol: 'MQTTS (TLS 1.2)',
+    topics: {
+      metrics: 'soundbox_dev/{imei}/metrics',
+      ack: 'soundbox_dev/{imei}/ack',
     },
-    get imei() {
-      return (typeof window !== 'undefined' && localStorage.getItem('walnut_imei')) || import.meta.env.VITE_WALNUT_IMEI || '861185084122685'
-    },
-    apiUrl: import.meta.env.VITE_WALNUT_API_URL || 'https://dev.walnutmedical.ai/api/soundbox/smart_logs',
   },
 }
