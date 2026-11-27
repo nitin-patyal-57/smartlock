@@ -67,7 +67,6 @@ export const DEMO_DEVICE_IDS = new Set([
   '861185084122693', // GPS Tracker confirmed by user (first card)
   '861185084122719', // GPS Tracker confirmed by user (third card)
   '861185084200101',
-  '861185084188827',
   '867787064208584',
   'SL-001',
   'SL-002',
@@ -141,7 +140,6 @@ export function isIgnoredDevice(id: string): boolean {
     clean === '861185084122693' || // First card: GPS Tracker confirmed by user
     clean === '861185084122719' || // Third card: GPS Tracker confirmed by user
     clean === '861185084200101' || // GPS Tracker
-    clean === '861185084188827' || // Old dummy
     clean === '867787064208584' || // Old dummy GPS tracker from user screenshot
     clean.startsWith('SL-') ||
     DEMO_DEVICE_IDS.has(clean)
@@ -168,7 +166,7 @@ if (typeof window !== 'undefined') {
       const arr = JSON.parse(raw)
       if (Array.isArray(arr)) {
         const cleaned = arr
-          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && d.deviceId !== '861185084188827' && d.deviceId !== '867509082945058')
+          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && d.deviceId !== '867509082945058')
           .map((d) => {
             if (d.deviceId === '861185084122685') return REAL_DEVICE_861185084122685
             return d
@@ -221,7 +219,7 @@ export function getCustomDevicesFromStorage(): SmartLockDevice[] {
       if (Array.isArray(parsed)) {
         const deleted = getDeletedDeviceIds()
         return parsed
-          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && d.deviceId !== '861185084188827' && d.deviceId !== '867509082945058')
+          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && d.deviceId !== '867509082945058')
           .map((d) => {
             if (d.deviceId === '861185084122685') return REAL_DEVICE_861185084122685
             return d
@@ -508,9 +506,6 @@ export const deviceService = {
 
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
     if (!id || getDeletedDeviceIds().has(id)) return undefined
-    if (id === '861185084188827' || id === '867787064208584') {
-      return REAL_DEVICE_861185084122685
-    }
     if (isIgnoredDevice(id)) return undefined
 
     let devFromServer: SmartLockDevice | undefined
@@ -559,12 +554,18 @@ export const deviceService = {
     if (!cleanImei || cleanImei.length < 10) {
       throw new Error('Valid IMEI of at least 10 digits required')
     }
-    if (isIgnoredDevice(cleanImei)) {
-      throw new Error('This demo IMEI has been decommissioned.')
+
+    // Ensure device is un-deleted
+    const deleted = getDeletedDeviceIds()
+    if (deleted.has(cleanImei)) {
+      deleted.delete(cleanImei)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_DELETED_KEY, JSON.stringify(Array.from(deleted)))
+      }
     }
 
-    const name = params.deviceName?.trim() || `SmartLock-${cleanImei.slice(-4)} (WM_SB_1605)`
-    const model = params.modelId?.trim() || 'WM_SB_1605'
+    const name = params.deviceName?.trim() || `SmartLock-${cleanImei.slice(-4)}`
+    const model = params.modelId?.trim() || 'GW1NS-4'
     const newDevice = createDefaultDevice(cleanImei, name, model)
 
     try {

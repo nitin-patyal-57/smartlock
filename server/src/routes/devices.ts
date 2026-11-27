@@ -184,7 +184,6 @@ const GPS_TRACKER_IMEIS = new Set([
   '861185084122693', // First card: GPS Tracker confirmed by user
   '861185084122719', // Third card: GPS Tracker confirmed by user
   '861185084200101',
-  '861185084188827',
   '867787064208584',
 ])
 
@@ -330,7 +329,7 @@ router.post('/devices', (req: Request, res: Response) => {
       lastSeen: now,
       device: {
         imei: cleanImei,
-        modelId: 'WM_SB_1605',
+        modelId: model,
         serialNumber: '',
         appVersion: 'WM_BP_2.0.8',
         sdkVersion: 'WM_SDK_C_260702',
@@ -450,6 +449,11 @@ router.post('/devices', (req: Request, res: Response) => {
       INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(cleanImei, name, 'online', now, JSON.stringify(initialData), now)
+
+    const broadcast = req.app.get('broadcast')
+    if (broadcast) {
+      broadcast('device_update', { deviceId: cleanImei, data: initialData, timestamp: now })
+    }
 
     res.status(201).json({ success: true, device: initialData })
   } catch (error: any) {

@@ -650,14 +650,15 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
           return
         }
 
-        // Only receive the device if in the JSON data there is a lock option or it is the target device
-        const isSmartLock = hasLockOption(json, topic) || imei === '861185084122685'
+        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+        const isRegistered = !!existingRow
+
+        // Accept if device has lock options, is a registered device, or is a known hardware IMEI
+        const isSmartLock = hasLockOption(json, topic) || isRegistered || imei === '861185084122685' || imei === '861185084188827'
         if (!isSmartLock) {
           console.log(`[MQTT] Skipping ${imei}: Plain GPS tracker / non-smartlock device ignored`)
           return
         }
-
-        const existingRow = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
         const existingDev = existingRow ? JSON.parse(existingRow.data) : null
 
         const deviceData = parseSoundboxMetrics(json, imei, now, existingDev)
@@ -769,7 +770,6 @@ export const GPS_TRACKER_IMEIS = new Set([
   '861185084122693', // First card: WEGW GPS Tracker
   '861185084122719', // Third card: WEGW GPS Tracker
   '861185084200101',
-  '861185084188827',
   '867787064208584',
 ])
 
@@ -778,9 +778,9 @@ function seedInitialDevices() {
     const db = getDb()
     // Remove older/stale devices, plain GPS trackers, and removed SmartLock-5058
     try {
-      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584', '867509082945058')").run()
-      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584', '867509082945058')").run()
-      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584', '867509082945058')").run()
+      db.prepare("DELETE FROM alerts WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '867787064208584', '867509082945058')").run()
+      db.prepare("DELETE FROM device_history WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '867787064208584', '867509082945058')").run()
+      db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '867787064208584', '867509082945058')").run()
     } catch {}
 
     // Ensure only active live device exists (861185084122685)
