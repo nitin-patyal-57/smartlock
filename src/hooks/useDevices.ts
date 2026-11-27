@@ -3,10 +3,10 @@ import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from
 import { deviceService } from '@/services/deviceService'
 import { wsService } from '@/services/websocket'
 import { useRefresh } from '@/context/RefreshContext'
-import { REAL_DEVICE_867509082945058 } from '@/services/realDevice'
+import { REAL_DEVICE_867509082945058, REAL_DEVICE_861185084122685 } from '@/services/realDevice'
 
 export function useDevices() {
-  const [devices, setDevices] = useState<SmartLockDevice[]>([REAL_DEVICE_867509082945058])
+  const [devices, setDevices] = useState<SmartLockDevice[]>([REAL_DEVICE_861185084122685, REAL_DEVICE_867509082945058])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { refreshInterval, isAutoRefreshEnabled } = useRefresh()
@@ -98,6 +98,9 @@ export function useDevices() {
 
 export function useDevice(id: string) {
   const [device, setDevice] = useState<SmartLockDevice | undefined>(() => {
+    if (id === '861185084122685') {
+      return REAL_DEVICE_861185084122685
+    }
     if (id === '867509082945058' || id === '861185084188827' || !id) {
       return REAL_DEVICE_867509082945058
     }

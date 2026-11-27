@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDevice } from '@/hooks/useDevices'
 import { deviceService } from '@/services/deviceService'
-import { REAL_DEVICE_867509082945058 } from '@/services/realDevice'
+import { REAL_DEVICE_867509082945058, REAL_DEVICE_861185084122685 } from '@/services/realDevice'
 import { DeviceLiveMapCard } from '@/components/map/DeviceLiveMapCard'
 import { isDeviceMoving } from '@/components/map/mapLayers'
 import Card from '@/components/ui/Card'
@@ -64,7 +64,7 @@ export default function DeviceDetailPage() {
 
   const handleQueryStatus = async () => {
     setActionStatus('Requesting telemetry query via MQTT...')
-    const targetId = id || REAL_DEVICE_867509082945058.deviceId
+    const targetId = id || (device?.deviceId || '861185084122685')
     const res = await deviceService.queryDeviceStatus(targetId)
     if (res.success) {
       setActionStatus('Status query sent! Telemetry refreshed.')
@@ -77,8 +77,8 @@ export default function DeviceDetailPage() {
   if (loading) return <LoadingSpinner message="Loading smartlock telemetry..." className="min-h-[60vh]" />
   if (error && !device) return <ErrorState message={error || 'Device not found'} onRetry={refetch} />
 
-  const base = REAL_DEVICE_867509082945058
-  const activeDev = device?.deviceId === base.deviceId && device?.device?.modelId === base.device.modelId ? device : device
+  const base = (id === '861185084122685' || device?.deviceId === '861185084122685') ? REAL_DEVICE_861185084122685 : REAL_DEVICE_867509082945058
+  const activeDev = device || base
 
   const d = {
     ...base,

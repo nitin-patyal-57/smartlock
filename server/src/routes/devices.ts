@@ -200,10 +200,10 @@ router.get('/devices', (req: Request, res: Response) => {
       .map((row: any) => {
         try {
           const parsed = JSON.parse(row.data)
-          const isOnline = row.status === 'online' && row.lastSeen && row.lastSeen >= cutoff
+          const isOnline = (row.status === 'online' || row.status === 'warning') && row.lastSeen && row.lastSeen >= cutoff
           return {
             ...parsed,
-            status: isOnline ? 'online' : 'offline',
+            status: isOnline ? row.status : 'offline',
             lastSeen: row.lastSeen || '',
             deviceId: row.deviceId,
             deviceName: row.deviceName,
@@ -232,17 +232,17 @@ router.get('/devices/:id', (req: Request, res: Response) => {
     }
 
     const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-    const isOnline = row.status === 'online' && row.lastSeen && row.lastSeen >= cutoff
+    const isOnline = (row.status === 'online' || row.status === 'warning') && row.lastSeen && row.lastSeen >= cutoff
 
     const parsed = JSON.parse(row.data)
     parsed.deviceId = row.deviceId
-    parsed.deviceName = row.deviceName?.includes('GW1NS-4') ? `SmartLock-${row.deviceId.slice(-4)} (WM_SB_1605)` : row.deviceName
-    parsed.status = isOnline ? 'online' : 'offline'
+    parsed.deviceName = row.deviceName
+    parsed.status = isOnline ? row.status : 'offline'
     parsed.lastSeen = row.lastSeen || ''
 
     if (parsed.device) {
       parsed.device.imei = row.deviceId
-      parsed.device.modelId = parsed.device.modelId || 'WM_SB_1605'
+      parsed.device.modelId = parsed.device.modelId || (row.deviceId === '861185084122685' ? 'GW1NS-4' : 'WM_SB_1605')
     }
 
     res.json(parsed)

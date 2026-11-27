@@ -114,7 +114,7 @@ export function isDeviceOnline(device?: SmartLockDevice | null): boolean {
   const diffMs = Date.now() - d.getTime()
   // If no ping/telemetry within the last 2 minutes, the device is considered off/offline
   if (isNaN(diffMs) || diffMs > 120000) return false
-  return device.status === 'online'
+  return device.status === 'online' || device.status === 'warning'
 }
 
 export function formatDateTime(isoString: string): string {

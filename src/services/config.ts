@@ -20,7 +20,7 @@ export const config = {
       return (typeof window !== 'undefined' && localStorage.getItem('walnut_api_key')) || import.meta.env.VITE_WALNUT_API_KEY || ''
     },
     get imei() {
-      return '861185084122719'
+      return (typeof window !== 'undefined' && localStorage.getItem('walnut_imei')) || import.meta.env.VITE_WALNUT_IMEI || '861185084122685'
     },
     apiUrl: import.meta.env.VITE_WALNUT_API_URL || 'https://dev.walnutmedical.ai/api/soundbox/smart_logs',
   },

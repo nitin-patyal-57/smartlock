@@ -118,7 +118,7 @@ export default function AddDeviceModal({
                 maxLength={20}
                 value={imei}
                 onChange={(e) => setImei(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="e.g. 861185084122719"
+                placeholder="e.g. 861185084122685"
                 className="w-full font-mono rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-emerald-400"
               />
             </div>

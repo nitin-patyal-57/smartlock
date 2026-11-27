@@ -1,6 +1,6 @@
 import { config } from './config'
 import type { SmartLockDevice, Alert, LocationHistoryEntry, ActivityEvent } from '@/types/smartlock'
-import { REAL_DEVICE_867509082945058 } from './realDevice'
+import { REAL_DEVICE_867509082945058, REAL_DEVICE_861185084122685 } from './realDevice'
 import { mockDevices, mockAlerts, mockLocationHistory, mockActivityEvents } from './mockData'
 import { database, ref, onValue, get, query, orderByChild, startAt, endAt, isFirebaseConfigured } from './firebase'
 
@@ -168,11 +168,10 @@ if (typeof window !== 'undefined') {
       const arr = JSON.parse(raw)
       if (Array.isArray(arr)) {
         const cleaned = arr
-          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && d.deviceId !== '861185084188827' && d.device?.modelId !== 'GW1NS-4')
+          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && d.deviceId !== '861185084188827')
           .map((d) => {
-            if (d.deviceId === '867509082945058' || d.device?.modelId === 'GW1NS-4') {
-              return REAL_DEVICE_867509082945058
-            }
+            if (d.deviceId === '861185084122685') return REAL_DEVICE_861185084122685
+            if (d.deviceId === '867509082945058') return REAL_DEVICE_867509082945058
             return d
           })
         localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(cleaned))
@@ -187,6 +186,7 @@ export function getDeletedDeviceIds(): Set<string> {
     if (raw) {
       const arr = JSON.parse(raw)
       const set = new Set<string>([...arr])
+      set.delete('861185084122685')
       set.delete('867509082945058')
       return set
     }
@@ -217,11 +217,10 @@ export function getCustomDevicesFromStorage(): SmartLockDevice[] {
       if (Array.isArray(parsed)) {
         const deleted = getDeletedDeviceIds()
         return parsed
-          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && d.deviceId !== '861185084188827' && d.device?.modelId !== 'GW1NS-4')
+          .filter((d) => d && d.deviceId && !isIgnoredDevice(d.deviceId) && !deleted.has(d.deviceId) && d.deviceId !== '861185084188827')
           .map((d) => {
-            if (d.deviceId === '867509082945058' || d.device?.modelId === 'GW1NS-4') {
-              return REAL_DEVICE_867509082945058
-            }
+            if (d.deviceId === '861185084122685') return REAL_DEVICE_861185084122685
+            if (d.deviceId === '867509082945058') return REAL_DEVICE_867509082945058
             return d
           })
       }
@@ -473,16 +472,31 @@ export const deviceService = {
       }
     }
 
+    if (!deleted.has(REAL_DEVICE_861185084122685.deviceId)) {
+      const existing = deviceMap.get(REAL_DEVICE_861185084122685.deviceId)
+      if (!existing) {
+        deviceMap.set(REAL_DEVICE_861185084122685.deviceId, REAL_DEVICE_861185084122685)
+      }
+    }
+
     if (!deleted.has(REAL_DEVICE_867509082945058.deviceId)) {
       const existing = deviceMap.get(REAL_DEVICE_867509082945058.deviceId)
-      if (!existing || existing.device?.modelId === 'GW1NS-4') {
+      if (!existing) {
         deviceMap.set(REAL_DEVICE_867509082945058.deviceId, REAL_DEVICE_867509082945058)
       }
     }
 
     const list = Array.from(deviceMap.values())
-      .filter((d) => !isIgnoredDevice(d.deviceId) && d.device?.modelId !== 'GW1NS-4')
+      .filter((d) => !isIgnoredDevice(d.deviceId))
       .map((d) => {
+        if (d.deviceId === REAL_DEVICE_861185084122685.deviceId) {
+          return {
+            ...REAL_DEVICE_861185084122685,
+            ...d,
+            deviceId: d.deviceId,
+            deviceName: d.deviceName || REAL_DEVICE_861185084122685.deviceName
+          }
+        }
         if (d.deviceId === REAL_DEVICE_867509082945058.deviceId) {
           return {
             ...REAL_DEVICE_867509082945058,
@@ -499,7 +513,7 @@ export const deviceService = {
   async getDeviceById(id: string): Promise<SmartLockDevice | undefined> {
     if (!id || getDeletedDeviceIds().has(id)) return undefined
     if (id === '861185084188827' || id === '867787064208584') {
-      return REAL_DEVICE_867509082945058
+      return REAL_DEVICE_861185084122685
     }
     if (isIgnoredDevice(id)) return undefined
 
@@ -511,7 +525,7 @@ export const deviceService = {
       })
       if (res.ok) {
         const dev = await res.json()
-        if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId) && hasLockOption(dev)) {
+        if (dev && dev.deviceId && !isIgnoredDevice(dev.deviceId) && (hasLockOption(dev) || dev.deviceId === '861185084122685')) {
           devFromServer = dev
         }
       }
@@ -526,6 +540,10 @@ export const deviceService = {
     const custom = getCustomDevicesFromStorage().find((d) => d.deviceId === id)
     if (custom) {
       return custom
+    }
+
+    if (id === REAL_DEVICE_861185084122685.deviceId && !getDeletedDeviceIds().has(id)) {
+      return REAL_DEVICE_861185084122685
     }
 
     if (id === REAL_DEVICE_867509082945058.deviceId && !getDeletedDeviceIds().has(id)) {

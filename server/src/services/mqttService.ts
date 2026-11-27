@@ -5,6 +5,8 @@ import { MQTT_CA, MQTT_CERT, MQTT_KEY } from './mqttCerts'
 const AWS_IOT_ENDPOINT = process.env.MQTT_BROKER_URL || 'mqtts://avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com:8883'
 
 // Topics as per WEGW Tracker - MQTT Interface specification (2026-11-23)
+const TOPIC_SOUNDBOX_DEV_TARGET = 'soundbox_dev/861185084122685/metrics'
+const TOPIC_SOUNDBOX_DEV_TARGET_ALL = 'soundbox_dev/861185084122685/#'
 const TOPIC_SOUNDBOX_METRICS = 'soundbox_dev/+/metrics'
 const TOPIC_SOUNDBOX_ACK = 'soundbox_dev/+/ack'
 const TOPIC_SOUNDBOX_CMD_PREFIX = 'soundbox_dev/'
@@ -273,8 +275,8 @@ export function parseLockInfo(json: any, now: string, existingLock?: any): any {
   const unlockMethod = l.last_unlock_method || l.unlock_method || l.unlockMethod || existingLock?.unlockMethod || 'REMOTE'
   const unlockCount = parseNum(l.unlock_count ?? l.unlockCount, existingLock?.unlockCount ?? 24)
   const failedUnlockCount = parseNum(l.failed_unlock_count ?? l.failedUnlockCount, existingLock?.failedUnlockCount ?? 2)
-  const lastLockTime = l.last_lock_time || l.lastLockTime || (lockStatus ? now : (existingLock?.lastLockTime || now))
-  const lastUnlockTime = l.last_unlock_time || l.lastUnlockTime || (!lockStatus ? now : (existingLock?.lastUnlockTime || ''))
+  const lastLockTime = l.last_lock_time !== undefined ? l.last_lock_time : (l.lastLockTime ?? (existingLock?.lastLockTime || ''))
+  const lastUnlockTime = l.last_unlock_time !== undefined ? l.last_unlock_time : (l.lastUnlockTime ?? (existingLock?.lastUnlockTime || ''))
 
   return {
     lockStatus,
@@ -306,7 +308,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
   const lon = parseNum(g.longitude, 0)
   const isFixed = g.status === 'FIXED' || (lat !== 0 && lon !== 0)
 
-  const gps: ParsedGpsData = {
+  const gps: ParsedGpsData & { fixType?: string } = {
     isFixed,
     latitude: lat !== 0 ? lat : 30.704649,
     longitude: lon !== 0 ? lon : 76.717873,
@@ -317,7 +319,8 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
     hdop: parseNum(g.hdop, 0.9),
     accuracy: parseNum(g.accuracy_m, isFixed ? 4.2 : 50),
     lastFix: g.last_fix || now,
-    lastLocation: g.location || (lat !== 0 ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : 'Mohali, Punjab')
+    lastLocation: g.location || (lat !== 0 ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : 'Mohali, Punjab'),
+    fixType: g.fix_type || (isFixed ? '3D' : '')
   }
 
   const p = json.power || {}
@@ -331,8 +334,22 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
   const tamper = access.tamper || json.tamper || {}
   const keypad = access.keypad || json.keypad || {}
   const rtcTime = access.rtc || json.rtc || now
-  const dev = json.device || {}
+  const isTamperAlarm = tamper.tamper_status && typeof tamper.tamper_status === 'string'
+    ? (tamper.tamper_status.toUpperCase() !== 'OK' && tamper.tamper_status.toUpperCase() !== 'NORMAL' && parseBool(tamper.tamper_status, false))
+    : parseBool(tamper.tamper_status ?? tamper.status, false)
 
+  const tamperObj = {
+    tamperStatus: isTamperAlarm || parseBool(tamper.case_open, false) || parseBool(tamper.wire_cut, false) || parseBool(tamper.lock_break, false) || parseBool(tamper.forced_unlock, false),
+    caseOpen: parseBool(tamper.case_open, false),
+    wireCut: parseBool(tamper.wire_cut, false),
+    lockBreak: parseBool(tamper.lock_break, false),
+    abnormalVibration: parseBool(tamper.abnormal_vibration, false),
+    forcedUnlock: parseBool(tamper.forced_unlock, false),
+    tamperCount: parseNum(tamper.tamper_count, 0),
+    lastTamperTime: tamper.last_tamper_time || ''
+  }
+
+  const dev = json.device || {}
   const lock = parseLockInfo(json, now, existingDev?.lock)
 
   return {
@@ -399,16 +416,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
       nfc: { enabled: true, lastUsed: now, count: 0 },
       bluetooth: { enabled: true, lastUsed: now, count: 0 },
       remote: { enabled: true, lastUsed: lock.lastUnlockTime || now, count: lock.unlockCount || 24 },
-      tamper: {
-        tamperStatus: parseBool(tamper.tamper_status ?? tamper.status, false),
-        caseOpen: parseBool(tamper.case_open, false),
-        wireCut: parseBool(tamper.wire_cut, false),
-        lockBreak: parseBool(tamper.lock_break, false),
-        abnormalVibration: parseBool(tamper.abnormal_vibration, false),
-        forcedUnlock: parseBool(tamper.forced_unlock, false),
-        tamperCount: parseNum(tamper.tamper_count, 0),
-        lastTamperTime: tamper.last_tamper_time || ''
-      },
+      tamper: tamperObj,
       accelerometer: {
         status: acc.status || 'OK',
         motion: parseBool(acc.motion, false),
@@ -426,16 +434,7 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
       },
       rtc: rtcTime
     },
-    tamper: {
-      tamperStatus: parseBool(tamper.tamper_status ?? tamper.status ?? existingDev?.tamper?.tamperStatus ?? false),
-      caseOpen: parseBool(tamper.case_open ?? existingDev?.tamper?.caseOpen ?? false),
-      wireCut: parseBool(tamper.wire_cut ?? existingDev?.tamper?.wireCut ?? false),
-      lockBreak: parseBool(tamper.lock_break ?? existingDev?.tamper?.lockBreak ?? false),
-      abnormalVibration: parseBool(tamper.abnormal_vibration ?? existingDev?.tamper?.abnormalVibration ?? false),
-      forcedUnlock: parseBool(tamper.forced_unlock ?? existingDev?.tamper?.forcedUnlock ?? false),
-      tamperCount: parseNum(tamper.tamper_count ?? existingDev?.tamper?.tamperCount, 0),
-      lastTamperTime: tamper.last_tamper_time || existingDev?.tamper?.lastTamperTime || ''
-    },
+    tamper: tamperObj,
     accelerometer: {
       status: acc.status || 'OK',
       motion: parseBool(acc.motion, false),
@@ -651,8 +650,8 @@ function handleMqttMessage(topic: string, messageBuffer: Buffer) {
           return
         }
 
-        // Only receive the device if in the JSON data there is a lock option (smartlock data)
-        const isSmartLock = hasLockOption(json, topic)
+        // Only receive the device if in the JSON data there is a lock option or it is the target device
+        const isSmartLock = hasLockOption(json, topic) || imei === '861185084122685' || imei === '867509082945058'
         if (!isSmartLock) {
           console.log(`[MQTT] Skipping ${imei}: Plain GPS tracker / non-smartlock device ignored`)
           return
@@ -784,36 +783,41 @@ function seedInitialDevices() {
       db.prepare("DELETE FROM devices WHERE deviceId IN ('861185084122693', '861185084122719', '861185084200101', '861185084188827', '867787064208584')").run()
     } catch {}
 
-    // Ensure SmartLock 867509082945058 exists, defaulting to 'offline' without demo data when turned off
-    const imei = '867509082945058'
-    const existing = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+    // Ensure devices exist (861185084122685 and 867509082945058)
+    const targetImeis = ['861185084122685', '867509082945058']
     const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
 
-    if (!existing) {
-      const initialOfflineDev = {
-        deviceId: imei,
-        deviceName: 'SmartLock-5058 (WM_SB_1605)',
-        status: 'offline',
-        lastSeen: '',
-        isSmartLock: true,
-        device: { imei, modelId: 'WM_SB_1605' },
-        power: {},
-        cellular: {},
-        gps: {},
-        lock: {},
-        access: {},
-        accelerometer: {}
-      }
-      db.prepare(`
-        INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(imei, 'SmartLock-5058 (WM_SB_1605)', 'offline', '', JSON.stringify(initialOfflineDev), new Date().toISOString())
-      console.log('[MQTT] Initialized SmartLock 867509082945058 as offline')
-    } else {
-      // If inactive for > 2 minutes, enforce offline status
-      if (!existing.lastSeen || existing.lastSeen < cutoff) {
-        db.prepare("UPDATE devices SET status = 'offline' WHERE deviceId = ?").run(imei)
-        console.log('[MQTT] Device 867509082945058 is currently offline (awaiting MQTT connection)')
+    for (const imei of targetImeis) {
+      const existing = db.prepare('SELECT * FROM devices WHERE deviceId = ?').get(imei) as any
+      const model = imei === '861185084122685' ? 'GW1NS-4' : 'WM_SB_1605'
+      const devName = imei === '861185084122685' ? `GW1NS-4 (${imei})` : `SmartLock-5058 (${model})`
+
+      if (!existing) {
+        const initialOfflineDev = {
+          deviceId: imei,
+          deviceName: devName,
+          status: 'offline',
+          lastSeen: '',
+          isSmartLock: true,
+          device: { imei, modelId: model },
+          power: {},
+          cellular: {},
+          gps: {},
+          lock: {},
+          access: {},
+          accelerometer: {}
+        }
+        db.prepare(`
+          INSERT INTO devices (deviceId, deviceName, status, lastSeen, data, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(imei, devName, 'offline', '', JSON.stringify(initialOfflineDev), new Date().toISOString())
+        console.log(`[MQTT] Initialized ${devName} as offline`)
+      } else {
+        // If inactive for > 2 minutes, enforce offline status
+        if (!existing.lastSeen || existing.lastSeen < cutoff) {
+          db.prepare("UPDATE devices SET status = 'offline' WHERE deviceId = ?").run(imei)
+          console.log(`[MQTT] Device ${imei} is currently offline (awaiting MQTT connection)`)
+        }
       }
     }
   } catch (err) {
@@ -837,7 +841,7 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
       const res = db.prepare(`
         UPDATE devices
         SET status = 'offline'
-        WHERE status = 'online' AND (lastSeen < ? OR lastSeen IS NULL OR lastSeen = '')
+        WHERE (status = 'online' OR status = 'warning') AND (lastSeen < ? OR lastSeen IS NULL OR lastSeen = '')
       `).run(cutoff)
       if (res.changes > 0) {
         console.log(`[MQTT] Marked ${res.changes} inactive device(s) as offline`)
@@ -876,8 +880,11 @@ export function initMqttService(broadcast: (event: string, data: unknown) => voi
 
       // Subscribe to SmartLock and production topics
       const topicsToSubscribe = [
+        TOPIC_SOUNDBOX_DEV_TARGET,
+        TOPIC_SOUNDBOX_DEV_TARGET_ALL,
         TOPIC_SOUNDBOX_METRICS,
         TOPIC_SOUNDBOX_ACK,
+        'soundbox_dev/#',
         'smartlock/+/metrics',
         'smartlock/+/telemetry',
         'smartlock/+/data',
