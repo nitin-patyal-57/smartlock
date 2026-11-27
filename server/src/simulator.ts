@@ -7,8 +7,6 @@ const IMEI = process.argv[2] || '867509082945058'
 const METRICS_TOPIC = `soundbox_dev/${IMEI}/metrics`
 const COMMAND_TOPIC = `soundbox_dev/${IMEI}/command`
 const ACK_TOPIC = `soundbox_dev/${IMEI}/ack`
-const LOCK_CMD_TOPIC = `soundbox_dev/${IMEI}/lock/cmd`
-const LOCK_ACK_TOPIC = `soundbox_dev/${IMEI}/lock/ack`
 const STATUS_TOPIC = `soundbox_dev/${IMEI}/status`
 
 console.log('='.repeat(65))
@@ -18,8 +16,6 @@ console.log(`Device IMEI   : ${IMEI}`)
 console.log(`Metrics Topic : ${METRICS_TOPIC} (every 2s)`)
 console.log(`Command Topic : ${COMMAND_TOPIC}`)
 console.log(`Ack Topic     : ${ACK_TOPIC}`)
-console.log(`Lock Cmd Topic: ${LOCK_CMD_TOPIC}`)
-console.log(`Lock Ack Topic: ${LOCK_ACK_TOPIC}`)
 console.log(`Status Topic  : ${STATUS_TOPIC}`)
 console.log('='.repeat(65))
 
@@ -53,10 +49,10 @@ client.on('connect', () => {
     else console.log(`[Simulator] Published online status to ${STATUS_TOPIC}`)
   })
 
-  // Subscribe to commands and lock control topic
-  client.subscribe([COMMAND_TOPIC, LOCK_CMD_TOPIC], { qos: 1 }, (err) => {
+  // Subscribe to commands topic
+  client.subscribe([COMMAND_TOPIC, `soundbox_dev/${IMEI}/lock/cmd`], { qos: 1 }, (err) => {
     if (err) console.error('[Simulator] Subscribe error:', err)
-    else console.log(`[Simulator] Subscribed to ${COMMAND_TOPIC} and ${LOCK_CMD_TOPIC}`)
+    else console.log(`[Simulator] Subscribed to ${COMMAND_TOPIC}`)
   })
 
   // Transmit metrics every 2s as specified
@@ -178,11 +174,11 @@ client.on('message', (topic, payload) => {
     const raw = payload.toString('utf-8')
     console.log(`[Command Received] << ${topic}: ${raw}`)
 
-    // Handle SmartLock Lock/Unlock Command as per Specification Topic 2 & 3
-    if (topic === LOCK_CMD_TOPIC) {
-      const lockCmd = JSON.parse(raw)
-      const command = String(lockCmd.command || '').toUpperCase()
-      const pin = String(lockCmd.pin || '').trim()
+    // Handle SmartLock Lock/Unlock Command on soundbox_dev/${IMEI}/command (or legacy lock/cmd)
+    const parsedCmd = JSON.parse(raw)
+    if (parsedCmd.command || parsedCmd.pin !== undefined) {
+      const command = String(parsedCmd.command || '').toUpperCase()
+      const pin = String(parsedCmd.pin || '').trim()
 
       console.log(`[Simulator Lock Cmd] command: ${command}, pin: ${pin}`)
 
@@ -190,17 +186,17 @@ client.on('message', (topic, payload) => {
       if (pin === '1234') {
         lockStatus = command === 'UNLOCK' ? 'UNLOCKED' : 'LOCKED'
         const ack = { command, status: 'SUCCESS' }
-        client.publish(LOCK_ACK_TOPIC, JSON.stringify(ack), { qos: 1, retain: false })
-        console.log(`[Simulator Lock Ack Sent] >> ${LOCK_ACK_TOPIC}:`, ack)
+        client.publish(ACK_TOPIC, JSON.stringify(ack), { qos: 1, retain: false })
+        console.log(`[Simulator Lock Ack Sent] >> ${ACK_TOPIC}:`, ack)
       } else {
         const ack = { command, status: 'FAILED', reason: 'WRONG_PIN' }
-        client.publish(LOCK_ACK_TOPIC, JSON.stringify(ack), { qos: 1, retain: false })
-        console.log(`[Simulator Lock Ack Sent] >> ${LOCK_ACK_TOPIC}:`, ack)
+        client.publish(ACK_TOPIC, JSON.stringify(ack), { qos: 1, retain: false })
+        console.log(`[Simulator Lock Ack Sent] >> ${ACK_TOPIC}:`, ack)
       }
       return
     }
 
-    const cmd = JSON.parse(raw)
+    const cmd = parsedCmd
     const ack: any = { id: cmd.id || '', cmd: cmd.cmd || '' }
 
     if (cmd.cmd === 'relay') {

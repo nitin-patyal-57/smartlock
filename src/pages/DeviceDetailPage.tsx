@@ -798,7 +798,7 @@ export default function DeviceDetailPage() {
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>MQTT Command Topic:</span>
                 <span className="font-mono text-slate-700 dark:text-slate-300">
-                  soundbox_dev/{d.deviceId}/lock/cmd
+                  soundbox_dev/{d.deviceId}/command
                 </span>
               </div>
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
@@ -808,7 +808,7 @@ export default function DeviceDetailPage() {
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Verification ACK:</span>
                 <span className="font-mono text-slate-700 dark:text-slate-300">
-                  soundbox_dev/{d.deviceId}/lock/ack
+                  soundbox_dev/{d.deviceId}/ack
                 </span>
               </div>
             </div>
