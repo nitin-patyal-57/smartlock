@@ -56,7 +56,7 @@ export const Header = React.memo(function Header({ onMenuClick }: HeaderProps) {
   }), [currentTime])
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50">
+    <header className="sticky top-0 z-30 bg-white/90 dark:bg-[#070b15]/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800">
       <div className="flex items-center justify-between h-16 px-4 md:px-6 lg:px-8">
         <div className="flex items-center gap-4">
           <button
@@ -66,10 +66,10 @@ export const Header = React.memo(function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">
+            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
               {pageTitle}
             </h1>
-            <p className="hidden md:block text-xs text-slate-500 dark:text-slate-400">
+            <p className="hidden md:block text-xs font-semibold text-slate-500 dark:text-slate-400">
               {formattedDate} &middot; {formattedTime}
             </p>
           </div>
@@ -77,15 +77,15 @@ export const Header = React.memo(function Header({ onMenuClick }: HeaderProps) {
 
         <div className="flex items-center gap-2.5">
           {/* Live Clock Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            <Clock className="h-3 w-3 text-emerald-500 animate-pulse" />
-            <span className="font-mono text-[11px] font-semibold">{formattedTime}</span>
+          <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-[#101b33] px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+            <Clock className="h-3 w-3 text-emerald-400 animate-pulse" />
+            <span className="font-mono text-[11px] font-bold">{formattedTime}</span>
           </div>
 
           {/* Live MQTT Status Badge */}
-          <div className="hidden md:flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <div className="hidden md:flex items-center gap-1.5 rounded-full bg-emerald-500/15 dark:bg-emerald-500/25 px-3.5 py-1 text-xs font-black text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 shadow-xs shadow-emerald-500/20">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-90" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
             <Wifi className="h-3 w-3" />

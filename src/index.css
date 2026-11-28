@@ -20,10 +20,34 @@ html {
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .dark {
   color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #070b14;
+  color: #f1f5f9;
+}
+
+/* Vibrant Glow & Glass Accents */
+.glow-emerald {
+  box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px -3px rgba(245, 158, 11, 0.35);
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px -3px rgba(59, 130, 246, 0.35);
+}
+
+.glow-rose {
+  box-shadow: 0 0 20px -3px rgba(244, 63, 94, 0.35);
 }
 
 .leaflet-container {

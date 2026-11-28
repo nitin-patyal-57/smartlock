@@ -60,52 +60,54 @@ export default function OverviewPage() {
     {
       label: 'Total Devices',
       value: devices.length,
-      icon: <Cpu className="h-5 w-5" />,
-      gradient: 'from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20',
-      iconColor: 'text-blue-600 dark:text-blue-400',
+      icon: <Cpu className="h-6 w-6 text-blue-500 dark:text-blue-400" />,
+      gradient: 'from-blue-600/20 via-indigo-600/10 to-transparent border-blue-500/30 dark:border-blue-500/40',
+      badgeBg: 'bg-blue-500/15 border-blue-500/30 dark:bg-blue-500/25 dark:border-blue-500/50 shadow-sm shadow-blue-500/25',
+      textColor: 'text-blue-600 dark:text-blue-400',
     },
     {
-      label: 'Online',
+      label: 'Online Locks',
       value: onlineCount,
-      icon: <Wifi className="h-5 w-5" />,
-      gradient: 'from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20',
-      iconColor: 'text-emerald-600 dark:text-emerald-400',
+      icon: <Wifi className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />,
+      gradient: 'from-emerald-600/20 via-teal-600/10 to-transparent border-emerald-500/30 dark:border-emerald-500/40',
+      badgeBg: 'bg-emerald-500/15 border-emerald-500/30 dark:bg-emerald-500/25 dark:border-emerald-500/50 shadow-sm shadow-emerald-500/25',
+      textColor: 'text-emerald-600 dark:text-emerald-400',
     },
     {
-      label: 'Offline',
+      label: 'Offline Locks',
       value: offlineCount,
-      icon: <WifiOff className="h-5 w-5" />,
-      gradient: 'from-red-500/10 to-rose-500/10 dark:from-red-500/20 dark:to-rose-500/20',
-      iconColor: 'text-red-600 dark:text-red-400',
+      icon: <WifiOff className="h-6 w-6 text-rose-500 dark:text-rose-400" />,
+      gradient: 'from-rose-600/20 via-red-600/10 to-transparent border-rose-500/30 dark:border-rose-500/40',
+      badgeBg: 'bg-rose-500/15 border-rose-500/30 dark:bg-rose-500/25 dark:border-rose-500/50 shadow-sm shadow-rose-500/25',
+      textColor: 'text-rose-600 dark:text-rose-400',
     },
     {
       label: 'Active Alerts',
       value: activeAlerts.length,
-      icon: <AlertTriangle className="h-5 w-5" />,
-      gradient: 'from-amber-500/10 to-orange-500/10 dark:from-amber-500/20 dark:to-orange-500/20',
-      iconColor: 'text-amber-600 dark:text-amber-400',
+      icon: <AlertTriangle className="h-6 w-6 text-amber-500 dark:text-amber-400" />,
+      gradient: 'from-amber-600/20 via-orange-600/10 to-transparent border-amber-500/30 dark:border-amber-500/40',
+      badgeBg: 'bg-amber-500/15 border-amber-500/30 dark:bg-amber-500/25 dark:border-amber-500/50 shadow-sm shadow-amber-500/25',
+      textColor: 'text-amber-600 dark:text-amber-400',
     },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Dashboard Overview</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Real-time smart lock monitoring</p>
+        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard Overview</h1>
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Real-time smart lock monitoring & cellular diagnostics</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
-          <Card key={card.label} padding="md">
-            <div className={`rounded-lg bg-gradient-to-br ${card.gradient} p-4`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{card.label}</p>
-                  <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{card.value}</p>
-                </div>
-                <div className={`rounded-lg bg-white/80 p-2 dark:bg-slate-800/80 ${card.iconColor}`}>
-                  {card.icon}
-                </div>
+          <Card key={card.label} padding="none" className={`overflow-hidden border bg-gradient-to-br ${card.gradient}`}>
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400">{card.label}</p>
+                <p className={`mt-1.5 text-3xl font-black tracking-tight ${card.textColor}`}>{card.value}</p>
+              </div>
+              <div className={`rounded-xl p-3 border ${card.badgeBg}`}>
+                {card.icon}
               </div>
             </div>
           </Card>
@@ -193,47 +195,53 @@ export default function OverviewPage() {
                 <div
                   key={device.deviceId}
                   onClick={() => navigate(`/locks/${device.deviceId}`)}
-                  className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 transition-all hover:shadow-md cursor-pointer dark:border-slate-700 dark:bg-slate-800"
+                  className="flex items-center gap-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121c35] p-3.5 transition-all duration-200 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-black/20 cursor-pointer"
                 >
                   <div className="relative flex-shrink-0">
                     {isOnline ? (
                       device.lock?.lockStatus ? (
-                        <Lock className="h-8 w-8 text-emerald-500" />
+                        <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          <Lock className="h-6 w-6" />
+                        </div>
                       ) : (
-                        <Unlock className="h-8 w-8 text-amber-500" />
+                        <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          <Unlock className="h-6 w-6" />
+                        </div>
                       )
                     ) : (
-                      <Lock className="h-8 w-8 text-slate-400" />
+                      <div className="p-2 rounded-xl bg-slate-500/10 text-slate-400 border border-slate-700/40">
+                        <Lock className="h-6 w-6" />
+                      </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
                       {device.deviceName}
                     </p>
-                    <p className="font-mono text-xs text-slate-400 truncate">
+                    <p className="font-mono text-xs font-semibold text-slate-400 truncate">
                       {device.deviceId}
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       {isOnline ? (
                         <>
                           <BatteryIndicator level={device.power?.batteryPercentage ?? 0} size="sm" />
-                          <span className="text-xs text-slate-500">{device.power?.batteryPercentage ?? 0}%</span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{device.power?.batteryPercentage ?? 0}%</span>
                         </>
                       ) : (
-                        <span className="text-xs text-slate-400 font-mono">N/A</span>
+                        <span className="text-xs text-rose-500 dark:text-rose-400 font-bold">Offline</span>
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex flex-col items-end gap-1.5">
                     <span
                       className={`h-2.5 w-2.5 rounded-full ${
-                        isOnline ? 'bg-emerald-500' : 'bg-red-500'
+                        isOnline ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-rose-500 shadow-xs shadow-rose-500/50'
                       }`}
                     />
                     {isOnline ? (
                       <SignalIndicator rssi={device.cellular?.rssi ?? 0} signalQuality={device.cellular?.signalQuality ?? 0} size="sm" />
                     ) : (
-                      <span className="text-[10px] text-slate-400">Offline</span>
+                      <span className="text-[10px] font-bold text-slate-400">Offline</span>
                     )}
                   </div>
                 </div>

@@ -37,9 +37,9 @@ import {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-none">
-      <span className="text-slate-400 font-medium">{label}</span>
-      <span className="font-semibold text-slate-800 dark:text-slate-200">{value}</span>
+    <div className="flex items-center justify-between text-xs py-2 border-b border-slate-200/80 dark:border-slate-800/80 last:border-none">
+      <span className="text-slate-500 dark:text-slate-400 font-bold tracking-wide text-[11px] uppercase">{label}</span>
+      <span className="font-bold text-slate-900 dark:text-white text-xs">{value}</span>
     </div>
   )
 }
@@ -49,10 +49,10 @@ function AxisBar({ label, value, color }: { label: string; value: number; color:
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-[11px]">
-        <span className="font-mono text-slate-400">{label}:</span>
-        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{value.toFixed(3)}g</span>
+        <span className="font-mono text-slate-400 font-bold">{label}:</span>
+        <span className="font-mono font-black text-slate-900 dark:text-white">{value.toFixed(3)}g</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 relative overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700/80 relative overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -294,14 +294,21 @@ export default function DeviceDetailPage() {
       <DeviceLiveMapCard device={d as any} height="h-[460px]" />
 
       {/* Remote Smart Lock Security Control Card */}
-      <Card padding="lg" className="border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+      <Card
+        padding="lg"
+        className={`border-2 shadow-xl transition-all duration-300 ${
+          d.lock?.lockStatus
+            ? 'border-emerald-500/50 bg-gradient-to-r from-emerald-500/15 via-[#0d1629] to-[#0d1629] shadow-emerald-500/10'
+            : 'border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-[#0d1629] to-[#0d1629] shadow-amber-500/10'
+        }`}
+      >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start gap-4">
             <div
-              className={`p-3.5 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
+              className={`p-4 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${
                 d.lock?.lockStatus
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30'
-                  : 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/30'
+                  ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/50 shadow-emerald-500/20'
+                  : 'bg-amber-500/25 text-amber-400 border border-amber-500/50 shadow-amber-500/20'
               }`}
             >
               {d.lock?.lockStatus ? (
@@ -312,39 +319,39 @@ export default function DeviceDetailPage() {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   Remote Smart Lock Control
                 </h3>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide uppercase border ${
+                  className={`px-3 py-1 rounded-full text-xs font-black tracking-wide uppercase border shadow-sm ${
                     d.lock?.lockStatus
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/40 shadow-emerald-500/20'
+                      : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/40 shadow-amber-500/20'
                   }`}
                 >
                   {d.lock?.lockStatus ? '● CURRENTLY LOCKED' : '○ CURRENTLY UNLOCKED'}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-300 mt-1.5 max-w-xl">
                 {d.lock?.lockStatus
                   ? 'The smart lock is currently securely LOCKED. Click "Unlock Device" below to enter the PIN password and verify via MQTT.'
                   : 'The smart lock is currently UNLOCKED. Click "Lock Device" below to secure the lock and engage the latch via MQTT.'}
               </p>
-              <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-400">
-                <span className="flex items-center gap-1 font-medium">
+              <div className="flex flex-wrap items-center gap-4 mt-2.5 text-xs text-slate-400 font-semibold">
+                <span className="flex items-center gap-1.5 font-bold">
                   Door Status:{' '}
-                  <strong className={d.lock?.doorStatus ? 'text-red-400' : 'text-slate-300'}>
+                  <strong className={`px-2 py-0.5 rounded-md ${d.lock?.doorStatus ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'}`}>
                     {d.lock?.doorStatus ? 'OPEN' : 'CLOSED'}
                   </strong>
                 </span>
                 {d.lock?.lastUnlockTime && (
                   <span className="flex items-center gap-1">
                     Last Unlocked:{' '}
-                    <strong>{formatTimeSafe(d.lock.lastUnlockTime)}</strong> ({d.lock.lastUnlockMethod || 'REMOTE'})
+                    <strong className="text-slate-200">{formatTimeSafe(d.lock.lastUnlockTime)}</strong> ({d.lock.lastUnlockMethod || 'REMOTE'})
                   </span>
                 )}
                 {Boolean(d.lock?.failedUnlockCount) && (
-                  <span className="text-rose-400 font-medium">
+                  <span className="text-rose-400 font-extrabold flex items-center gap-1">
                     Failed Attempts: {d.lock.failedUnlockCount}
                   </span>
                 )}
@@ -357,7 +364,7 @@ export default function DeviceDetailPage() {
               <button
                 type="button"
                 onClick={() => handleOpenPinModal('UNLOCK')}
-                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold px-6 py-3 text-sm shadow-lg shadow-amber-500/20 transition cursor-pointer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-black px-7 py-3.5 text-sm shadow-xl shadow-amber-500/30 transition cursor-pointer"
               >
                 <Unlock className="h-4 w-4" />
                 <span>Unlock Device</span>
@@ -366,7 +373,7 @@ export default function DeviceDetailPage() {
               <button
                 type="button"
                 onClick={() => handleOpenPinModal('LOCK')}
-                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold px-6 py-3 text-sm shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-black px-7 py-3.5 text-sm shadow-xl shadow-emerald-500/30 transition cursor-pointer"
               >
                 <Lock className="h-4 w-4" />
                 <span>Lock Device</span>

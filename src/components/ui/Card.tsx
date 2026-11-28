@@ -21,9 +21,9 @@ export default React.memo(function Card({ children, className, hover = false, pa
     <div
       onClick={onClick}
       className={cn(
-        'rounded-xl border border-slate-200 bg-white',
-        'dark:border-slate-700 dark:bg-slate-800',
-        hover && 'transition-shadow hover:shadow-md cursor-pointer',
+        'rounded-2xl border border-slate-200/90 bg-white shadow-xs',
+        'dark:border-slate-800/90 dark:bg-[#0d1629] dark:shadow-md dark:shadow-black/25',
+        hover && 'transition-all duration-200 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-black/25 hover:-translate-y-0.5 cursor-pointer',
         paddingStyles[padding],
         className
       )}

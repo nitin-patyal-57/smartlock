@@ -49,20 +49,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside
         className={cn(
           'fixed top-0 left-0 z-50 h-full w-64 flex flex-col',
-          'bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900',
-          'dark:from-slate-950 dark:via-slate-900 dark:to-slate-950',
-          'border-r border-slate-700/50 dark:border-slate-700/30',
+          'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950',
+          'dark:from-[#060a14] dark:via-[#090f1e] dark:to-[#060a14]',
+          'border-r border-slate-800 dark:border-slate-800/80 shadow-2xl',
           'transition-all duration-300 ease-in-out',
           'lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <div className="flex items-center justify-between px-5 py-5 border-b border-slate-700/50">
+        <div className="flex items-center justify-between px-5 py-5 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/25">
-              <Shield className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-500 shadow-lg shadow-emerald-500/30">
+              <Shield className="w-5 h-5 text-slate-950 font-bold" />
             </div>
-            <span className="text-lg font-bold text-white tracking-tight">SmartLock</span>
+            <div>
+              <span className="text-xl font-black text-white tracking-tight">SmartLock</span>
+              <span className="block text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Dashboard Pro</span>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -81,11 +84,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               onClick={onClose}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold',
                   'transition-all duration-200 group relative',
                   isActive
-                    ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400 ml-0 pl-[10px]'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border-l-2 border-transparent ml-0 pl-[10px]'
+                    ? 'bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent text-emerald-400 border-l-4 border-emerald-400 pl-[9px] shadow-sm shadow-emerald-500/15'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/80 border-l-4 border-transparent pl-[9px]'
                 )
               }
             >
@@ -93,8 +96,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <>
                   <item.icon
                     className={cn(
-                      'w-5 h-5 flex-shrink-0 transition-colors',
-                      isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'
+                      'w-5 h-5 flex-shrink-0 transition-all duration-200',
+                      isActive ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'text-slate-400 group-hover:text-slate-200'
                     )}
                   />
                   <span className="truncate">{item.label}</span>
