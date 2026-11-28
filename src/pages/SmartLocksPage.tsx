@@ -49,10 +49,15 @@ export default function SmartLocksPage() {
 
   const handleDeviceCardClick = (d: SmartLockDevice) => {
     const isOnline = isDeviceOnline(d)
+    const hasCustomName = Boolean(
+      d.deviceName &&
+      !d.deviceName.toLowerCase().startsWith('smartlock-') &&
+      d.deviceName !== d.deviceId
+    )
     if (!isOnline) {
       setOfflineDevice(d)
       setToastMessage({
-        title: `Device "${d.deviceName || d.deviceId}" is Offline`,
+        title: `Device "${hasCustomName ? d.deviceName : d.deviceId}" is Offline`,
         subtitle: `IMEI ${d.deviceId} is not broadcasting live MQTT telemetry. Overview is available once online.`,
       })
       return
@@ -270,50 +275,61 @@ export default function SmartLocksPage() {
                 className="group relative cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0b1324] p-5 md:p-6 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-700 shadow-md dark:shadow-black/40 hover:shadow-xl"
               >
                 {/* Header: Title, IMEI & Status Pill + Trash */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base md:text-lg font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                      {d.deviceName || d.deviceId}
-                    </h3>
-                    <p className="mt-0.5 font-mono text-xs font-bold text-slate-600 dark:text-slate-400">
-                      IMEI: {d.deviceId}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border',
-                        isOnline
-                          ? isMoving
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
-                            : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-[#132238] dark:text-[#38bdf8] dark:border-[#1e3a5f]'
-                          : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'h-1.5 w-1.5 rounded-full',
-                          isOnline
-                            ? isMoving
-                              ? 'bg-emerald-500 animate-pulse'
-                              : 'bg-sky-500 dark:bg-[#38bdf8]'
-                            : 'bg-rose-500 dark:bg-rose-400'
+                {(() => {
+                  const hasCustomName = Boolean(
+                    d.deviceName &&
+                    !d.deviceName.toLowerCase().startsWith('smartlock-') &&
+                    d.deviceName !== d.deviceId
+                  )
+                  return (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-base md:text-lg font-black font-mono text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {hasCustomName ? d.deviceName : `IMEI: ${d.deviceId}`}
+                        </h3>
+                        {hasCustomName && (
+                          <p className="mt-0.5 font-mono text-xs font-bold text-slate-600 dark:text-slate-400">
+                            IMEI: {d.deviceId}
+                          </p>
                         )}
-                      />
-                      <span>{isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}</span>
-                    </span>
+                      </div>
 
-                    <button
-                      onClick={(e) => handleDelete(e, d)}
-                      disabled={deletingId === d.deviceId}
-                      title="Remove smart lock"
-                      className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border',
+                            isOnline
+                              ? isMoving
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
+                                : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-[#132238] dark:text-[#38bdf8] dark:border-[#1e3a5f]'
+                              : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'h-1.5 w-1.5 rounded-full',
+                              isOnline
+                                ? isMoving
+                                  ? 'bg-emerald-500 animate-pulse'
+                                  : 'bg-sky-500 dark:bg-[#38bdf8]'
+                                : 'bg-rose-500 dark:bg-rose-400'
+                            )}
+                          />
+                          <span>{isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}</span>
+                        </span>
+
+                        <button
+                          onClick={(e) => handleDelete(e, d)}
+                          disabled={deletingId === d.deviceId}
+                          title="Remove smart lock"
+                          className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* 3 Metric Boxes (Speed, Satellites, Heading) */}
                 <div className="mt-4 grid grid-cols-3 gap-2.5">
@@ -427,8 +443,21 @@ export default function SmartLocksPage() {
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 cursor-pointer transition"
                     >
                       <td className="px-4 py-3">
-                        <p className="font-bold text-slate-900 dark:text-slate-100">{d.deviceName || d.deviceId}</p>
-                        <p className="font-mono text-[11px] text-slate-400">IMEI: {d.deviceId}</p>
+                        {(() => {
+                          const hasCustomName = Boolean(
+                            d.deviceName &&
+                            !d.deviceName.toLowerCase().startsWith('smartlock-') &&
+                            d.deviceName !== d.deviceId
+                          )
+                          return (
+                            <>
+                              <p className="font-bold font-mono text-slate-900 dark:text-slate-100">
+                                {hasCustomName ? d.deviceName : `IMEI: ${d.deviceId}`}
+                              </p>
+                              {hasCustomName && <p className="font-mono text-[11px] text-slate-400">IMEI: {d.deviceId}</p>}
+                            </>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge

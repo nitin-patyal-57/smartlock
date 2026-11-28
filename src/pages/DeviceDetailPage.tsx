@@ -214,8 +214,10 @@ export default function DeviceDetailPage() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                {d.deviceName}
+              <h1 className="text-xl font-black font-mono text-slate-900 dark:text-slate-100 tracking-tight">
+                {Boolean(d.deviceName && !d.deviceName.toLowerCase().startsWith('smartlock-') && d.deviceName !== d.deviceId)
+                  ? d.deviceName
+                  : `IMEI: ${d.deviceId}`}
               </h1>
 
               {/* Lock Status Pill Badge */}
@@ -795,7 +797,10 @@ export default function DeviceDetailPage() {
                   {targetAction === 'UNLOCK' ? 'Unlock Smart Lock' : 'Lock Smart Lock'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                  IMEI: {d.deviceId} &middot; {d.deviceName}
+                  IMEI: {d.deviceId}
+                  {Boolean(d.deviceName && !d.deviceName.toLowerCase().startsWith('smartlock-') && d.deviceName !== d.deviceId) && (
+                    <span> &middot; {d.deviceName}</span>
+                  )}
                 </p>
               </div>
             </div>

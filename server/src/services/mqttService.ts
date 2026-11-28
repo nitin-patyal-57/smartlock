@@ -307,7 +307,9 @@ function parseSoundboxMetrics(json: any, imei: string, now: string, existingDev?
 
   return {
     deviceId: imei,
-    deviceName: dev.model_id ? `${dev.model_id} (${imei})` : `SmartLock-${imei.slice(-4)}`,
+    deviceName: (existingDev?.deviceName && !existingDev.deviceName.toLowerCase().startsWith('smartlock-') && existingDev.deviceName !== imei)
+      ? existingDev.deviceName
+      : imei,
     deviceType: 'smartlock',
     isSmartLock: true,
     status: isLowBat ? 'warning' : 'online',

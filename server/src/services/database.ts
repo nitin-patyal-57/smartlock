@@ -78,5 +78,20 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON activity(timestamp);
   `)
 
+  // Migration: clean up any legacy SmartLock-<last4> device names to IMEI
+  try {
+    db.prepare("UPDATE devices SET deviceName = deviceId WHERE deviceName LIKE 'SmartLock-%'").run()
+    const rows = db.prepare("SELECT deviceId, data FROM devices WHERE deviceName = deviceId").all() as { deviceId: string; data: string }[]
+    for (const row of rows) {
+      try {
+        const parsed = JSON.parse(row.data)
+        if (parsed.deviceName && parsed.deviceName.toLowerCase().startsWith('smartlock-')) {
+          parsed.deviceName = row.deviceId
+          db.prepare("UPDATE devices SET data = ? WHERE deviceId = ?").run(JSON.stringify(parsed), row.deviceId)
+        }
+      } catch {}
+    }
+  } catch {}
+
   console.log('Database initialized successfully')
 }

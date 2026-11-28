@@ -226,7 +226,8 @@ export function registerDevice(reg: DeviceRegistration): { device: any; created:
   const existing = getDevice(imei)
   if (existing) return { device: existing, created: false }
 
-  const name = String(reg.deviceName ?? '').trim() || `SmartLock-${imei.slice(-4)}`
+  const customName = String(reg.deviceName ?? '').trim()
+  const name = (customName && !customName.toLowerCase().startsWith('smartlock-') && customName !== imei) ? customName : imei
   const model = String(reg.modelId ?? '').trim() || 'GW1NS-4'
   const initial = createInitialDevice(imei, name, model)
   const now = new Date().toISOString()

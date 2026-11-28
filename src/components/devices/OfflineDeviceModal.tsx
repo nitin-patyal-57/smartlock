@@ -38,12 +38,18 @@ export default function OfflineDeviceModal({ device, onClose }: OfflineDeviceMod
 
         {/* Device Information Card */}
         <div className="mt-5 rounded-2xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 p-4 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Device Name:</span>
-            <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[200px]">
-              {device.deviceName || device.deviceId}
-            </span>
-          </div>
+          {Boolean(
+            device.deviceName &&
+            !device.deviceName.toLowerCase().startsWith('smartlock-') &&
+            device.deviceName !== device.deviceId
+          ) && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Device Name:</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[200px]">
+                {device.deviceName}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">IMEI Number:</span>

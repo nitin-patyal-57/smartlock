@@ -233,12 +233,25 @@ export default function OverviewPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
-                      {device.deviceName}
-                    </p>
-                    <p className="font-mono text-xs font-semibold text-slate-400 truncate">
-                      {device.deviceId}
-                    </p>
+                    {(() => {
+                      const hasCustomName = Boolean(
+                        device.deviceName &&
+                        !device.deviceName.toLowerCase().startsWith('smartlock-') &&
+                        device.deviceName !== device.deviceId
+                      )
+                      return (
+                        <>
+                          <p className="truncate text-sm font-bold font-mono text-slate-900 dark:text-white">
+                            {hasCustomName ? device.deviceName : `IMEI: ${device.deviceId}`}
+                          </p>
+                          {hasCustomName && (
+                            <p className="font-mono text-xs font-semibold text-slate-400 truncate">
+                              IMEI: {device.deviceId}
+                            </p>
+                          )}
+                        </>
+                      )
+                    })()}
                     <div className="mt-1 flex items-center gap-2">
                       {isOnline ? (
                         <>
