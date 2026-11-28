@@ -18,6 +18,7 @@ const TOPIC_SOUNDBOX_CMD_PREFIX = 'soundbox_dev/'
 const deviceTopics = (imei: string) => [
   `soundbox_dev/${imei}/metrics`,
   `soundbox_dev/${imei}/ack`,
+  `soundbox_dev/${imei}/lock/ack`,
   `soundbox_dev/${imei}/status`,
 ]
 
@@ -830,6 +831,7 @@ export async function sendLockCommandWithAck(
     currentWaiters.push(waiter)
     lockAckWaiters.set(cleanImei, currentWaiters)
 
+    const altTopic = `soundbox_dev/${cleanImei}/lock/cmd`
     mqttClient!.publish(topic, payload, { qos: 1, retain: false }, (err) => {
       if (err) {
         clearTimeout(timer)
@@ -839,6 +841,7 @@ export async function sendLockCommandWithAck(
         resolve({ success: false, error: `Failed to publish to MQTT: ${err.message}` })
       } else {
         console.log(`[MQTT] Published lock command to ${topic}: ${payload}`)
+        mqttClient!.publish(altTopic, payload, { qos: 1, retain: false }, () => {})
       }
     })
   })

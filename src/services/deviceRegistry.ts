@@ -13,13 +13,15 @@ export interface RegisteredLock {
 }
 
 const REGISTRY_KEY = 'smartlock_registry_v1'
-const PURGE_KEY = 'smartlock_clean_state_v6'
+const PURGE_KEY = 'smartlock_clean_state_v8'
 const LEGACY_KEYS = [
   'custom_smartlock_devices',
   'deleted_smartlock_devices',
   'walnut_imei',
   'walnut_api_key',
   'smartlock_clean_state_v5',
+  'smartlock_clean_state_v6',
+  'smartlock_clean_state_v7',
 ]
 
 function purgeLegacyKeys() {
