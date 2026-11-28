@@ -114,7 +114,7 @@ export default function AddDeviceModal({
                 value={imei}
                 onChange={(e) => setImei(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="e.g. 861185084122685"
-                className="w-full font-mono rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-emerald-400"
+                className="w-full font-mono rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-4 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-400 dark:focus:bg-slate-800"
               />
             </div>
             <p className="mt-1 text-[11px] text-slate-400">
@@ -133,7 +133,7 @@ export default function AddDeviceModal({
                 value={deviceName}
                 onChange={(e) => setDeviceName(e.target.value)}
                 placeholder="e.g. Warehouse Main Gate / Smart Lock #02"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-emerald-400"
+                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-4 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-400 dark:focus:bg-slate-800"
               />
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function AddDeviceModal({
               value={modelId}
               onChange={(e) => setModelId(e.target.value)}
               placeholder="e.g. GW1NS-4"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-emerald-400"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 px-4 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-400 dark:focus:bg-slate-800"
             />
           </div>
 
