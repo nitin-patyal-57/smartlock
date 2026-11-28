@@ -289,6 +289,7 @@ export function getHistory(deviceId: string, from?: string, to?: string) {
       heading: row.heading,
       accuracy: row.accuracy,
       batteryPercentage: row.batteryPercentage,
+      batteryVoltage: row.batteryVoltage,
       lockStatus: row.lockStatus === 1,
       timestamp: row.timestamp,
       isFixed: true,

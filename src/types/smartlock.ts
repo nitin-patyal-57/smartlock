@@ -228,6 +228,9 @@ export interface LocationHistoryEntry {
   speed: number;
   heading: number;
   accuracy: number;
+  batteryPercentage?: number;
+  batteryVoltage?: number;
+  lockStatus?: boolean;
   timestamp: string;
   isFixed: boolean;
 }
