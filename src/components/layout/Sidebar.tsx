@@ -13,9 +13,11 @@ import {
   Moon,
   X,
   Shield,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '@/utils/helpers'
 import { useTheme } from '@/context/ThemeContext'
+import { useAuth } from '@/context/AuthContext'
 
 interface SidebarProps {
   isOpen: boolean
@@ -36,6 +38,7 @@ const navItems = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { isDark, toggleTheme } = useTheme()
+  const { user, logout } = useAuth()
 
   return (
     <>
@@ -107,12 +110,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-slate-700/50">
+        <div className="p-3 border-t border-slate-700/50 space-y-1">
+          {user && (
+            <div className="px-3 py-2 rounded-xl bg-[#0d1629]/90 border border-slate-700/60 flex items-center justify-between mb-1.5">
+              <div className="min-w-0 pr-2">
+                <p className="text-xs font-bold text-slate-200 truncate">{user.name}</p>
+                <p className="text-[10px] text-emerald-400 font-mono truncate">{user.email}</p>
+              </div>
+              <button
+                onClick={logout}
+                title="Sign Out"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <button
             onClick={toggleTheme}
             className={cn(
               'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium',
-              'text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200'
+              'text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200 cursor-pointer'
             )}
           >
             {isDark ? (
