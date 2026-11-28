@@ -17,9 +17,22 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/index-DjZWwzK8.js"></script>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme');
+          var isDark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-BhXeYJOR.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/createLucideIcon-BXLm2Wke.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-DqPlMtMP.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-zaWkiqXP.css">
   </head>
   <body class="antialiased">
     <div id="root"></div>

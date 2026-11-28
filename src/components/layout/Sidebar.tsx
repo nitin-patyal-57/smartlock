@@ -32,7 +32,6 @@ const navItems = [
   { to: '/battery-history', icon: Battery, label: 'Battery History' },
   { to: '/lock-activity', icon: Activity, label: 'Lock Activity' },
   { to: '/alerts', icon: Bell, label: 'Alerts' },
-  { to: '/reports', icon: BarChart3, label: 'Reports' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

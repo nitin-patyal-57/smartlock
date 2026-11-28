@@ -3,21 +3,35 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 export interface AuthUser {
   email: string
   name: string
-  role: string
+  role: 'admin' | 'user'
   loginTime: string
 }
 
 interface AuthContextType {
   user: AuthUser | null
   isAuthenticated: boolean
+  isAdmin: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
 }
 
 const AUTH_STORAGE_KEY = 'smartlock_auth_user_session'
-const VALID_EMAIL = 'admin@walnutmedical.in'
-const VALID_PASSWORD = 'Walnut@2026'
+
+const ACCOUNTS = [
+  {
+    email: 'admin@walnutmedical.in',
+    password: 'Walnut@2026',
+    role: 'admin' as const,
+    name: 'Walnut Administrator',
+  },
+  {
+    email: 'user@walnutmedical.in',
+    password: 'WalnutMedical@2026',
+    role: 'user' as const,
+    name: 'Walnut Operator',
+  },
+]
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -27,8 +41,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(AUTH_STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored)
-        if (parsed && parsed.email?.toLowerCase() === VALID_EMAIL) {
-          return parsed
+        const match = ACCOUNTS.find((a) => a.email === parsed?.email?.toLowerCase())
+        if (match) {
+          return {
+            email: match.email,
+            name: match.name,
+            role: match.role,
+            loginTime: parsed.loginTime || new Date().toISOString(),
+          }
         }
       }
     } catch {
@@ -46,11 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Artificial short delay for realistic security verification feeling
     await new Promise((r) => setTimeout(r, 400))
 
-    if (cleanEmail === VALID_EMAIL && cleanPassword === VALID_PASSWORD) {
+    const account = ACCOUNTS.find(
+      (a) => a.email.toLowerCase() === cleanEmail && a.password === cleanPassword
+    )
+
+    if (account) {
       const authUser: AuthUser = {
-        email: VALID_EMAIL,
-        name: 'Walnut Administrator',
-        role: 'Admin',
+        email: account.email,
+        name: account.name,
+        role: account.role,
         loginTime: new Date().toISOString(),
       }
       try {
@@ -81,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        isAdmin: user?.role === 'admin',
         isLoading,
         login,
         logout,

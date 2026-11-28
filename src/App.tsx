@@ -17,7 +17,6 @@ const LocationHistoryPage = lazy(() => import('@/pages/LocationHistoryPage'))
 const BatteryHistoryPage = lazy(() => import('@/pages/BatteryHistoryPage'))
 const LockActivityPage = lazy(() => import('@/pages/LockActivityPage'))
 const AlertsPage = lazy(() => import('@/pages/AlertsPage'))
-const ReportsPage = lazy(() => import('@/pages/ReportsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 
 export default function App() {
@@ -50,7 +49,6 @@ export default function App() {
                     <Route path="/battery-history" element={<BatteryHistoryPage />} />
                     <Route path="/lock-activity" element={<LockActivityPage />} />
                     <Route path="/alerts" element={<AlertsPage />} />
-                    <Route path="/reports" element={<ReportsPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Route>
 

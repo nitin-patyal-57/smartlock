@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useTheme } from '@/context/ThemeContext'
 import { useRefresh } from '@/context/RefreshContext'
+import { useAuth } from '@/context/AuthContext'
 import { deviceService } from '@/services/deviceService'
 import {
   Settings,
@@ -61,6 +62,7 @@ function Toggle({ label, description, enabled, onChange, icon }: ToggleProps) {
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme()
   const { refreshInterval, setRefreshInterval, isAutoRefreshEnabled, toggleAutoRefresh } = useRefresh()
+  const { isAdmin } = useAuth()
   const [dashboardName, setDashboardName] = useState('Smart Lock Dashboard')
   const [timezone, setTimezone] = useState('America/New_York')
   const [compactMode, setCompactMode] = useState(false)
@@ -254,105 +256,123 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">AWS IoT Core MQTT Broker</h2>
-          </div>
-          <StatusBadge label="Broker Active" variant="success" pulse />
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Broker Endpoint</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value="avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com"
-                disabled
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-              />
-              <StatusBadge label="Port 8883" variant="neutral" />
+      {isAdmin ? (
+        <>
+          <Card>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Radio className="h-5 w-5 text-emerald-500" />
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">AWS IoT Core MQTT Broker</h2>
+              </div>
+              <StatusBadge label="Broker Active" variant="success" pulse />
             </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Protocol & Security</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value="MQTTS (TLS 1.2 Mutual Certificate Authentication)"
-                disabled
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-              />
-              <StatusBadge label="TLS Secured" variant="success" />
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Broker Endpoint</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value="avj249ldc7joq-ats.iot.ap-south-1.amazonaws.com"
+                    disabled
+                    className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  />
+                  <StatusBadge label="Port 8883" variant="neutral" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Protocol & Security</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value="MQTTS (TLS 1.2 Mutual Certificate Authentication)"
+                    disabled
+                    className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  />
+                  <StatusBadge label="TLS Secured" variant="success" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Active Telemetry Topic Pattern</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value="soundbox_dev/{imei}/metrics"
+                    disabled
+                    className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  />
+                  <StatusBadge label="Subscribed" variant="success" />
+                </div>
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Active Telemetry Topic Pattern</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value="soundbox_dev/{imei}/metrics"
-                disabled
-                className="flex-1 max-w-md rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-              />
-              <StatusBadge label="Subscribed" variant="success" />
-            </div>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
-      <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Database & Storage Management</h2>
-        </div>
-        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Reset all stored telemetry, clear local device cache, and wipe the server database. Newly registered smart lock devices will stream live metrics directly from the MQTT broker.
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleClearAllDevices}
-            disabled={clearingDb || clearSuccess}
-            className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-rose-700 transition disabled:opacity-50"
-          >
-            {clearSuccess ? (
-              <>
-                <Check className="h-4 w-4" />
-                Cleared! Reloading...
-              </>
-            ) : clearingDb ? (
-              'Clearing Database...'
-            ) : (
-              <>
-                <Trash2 className="h-4 w-4" />
-                Remove All Locks & Reset
-              </>
-            )}
-          </button>
-        </div>
-      </Card>
+          <Card>
+            <div className="mb-4 flex items-center gap-2">
+              <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Database & Storage Management</h2>
+            </div>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              Reset all stored telemetry, clear local device cache, and wipe the server database. Newly registered smart lock devices will stream live metrics directly from the MQTT broker.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleClearAllDevices}
+                disabled={clearingDb || clearSuccess}
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-rose-700 transition disabled:opacity-50"
+              >
+                {clearSuccess ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Cleared! Reloading...
+                  </>
+                ) : clearingDb ? (
+                  'Clearing Database...'
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Remove All Locks & Reset
+                  </>
+                )}
+              </button>
+            </div>
+          </Card>
 
-      <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Data Sources</h2>
-        </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
-          <div className="flex items-center gap-3">
-            <StatusBadge label="Pure Real-Time MQTT" variant="success" size="md" pulse />
+          <Card>
+            <div className="mb-4 flex items-center gap-2">
+              <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Data Sources</h2>
+            </div>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+              <div className="flex items-center gap-3">
+                <StatusBadge label="Pure Real-Time MQTT" variant="success" size="md" pulse />
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">
+                    Direct Telemetry Stream from AWS IoT Core MQTT Broker
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    All device telemetry, GPS coordinates, lock status, door sensor states, and motion diagnostics are streamed in real time over MQTT topics (<code className="text-xs bg-emerald-100 dark:bg-emerald-950 px-1 py-0.5 rounded">soundbox_dev/&#123;imei&#125;/metrics</code>) through WebSocket. No external REST API or polling endpoint is used.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </>
+      ) : (
+        <Card className="border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/60 dark:bg-[#0d1629]/50">
+          <div className="flex items-start gap-3 text-slate-500 dark:text-slate-400">
+            <Shield className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-slate-900 dark:text-white">
-                Direct Telemetry Stream from AWS IoT Core MQTT Broker
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Administrative Infrastructure Restricted
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                All device telemetry, GPS coordinates, lock status, door sensor states, and motion diagnostics are streamed in real time over MQTT topics (<code className="text-xs bg-emerald-100 dark:bg-emerald-950 px-1 py-0.5 rounded">soundbox_dev/&#123;imei&#125;/metrics</code>) through WebSocket. No external REST API or polling endpoint is used.
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                AWS IoT Core MQTT Broker configuration, Database Management, and Data Sources are restricted to Administrator accounts (<code className="font-mono text-emerald-600 dark:text-emerald-400">admin@walnutmedical.in</code>).
               </p>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   )
 }

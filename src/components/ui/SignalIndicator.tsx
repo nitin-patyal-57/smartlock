@@ -56,7 +56,12 @@ export default React.memo(function SignalIndicator({
         ))}
       </div>
       {showText && (
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+        <span
+          className={cn(
+            'text-xs font-bold uppercase tracking-wider',
+            barCount >= 3 ? 'text-emerald-600 dark:text-[#38bdf8]' : barCount === 2 ? 'text-amber-500' : 'text-rose-500'
+          )}
+        >
           {signalText || `${signalQuality}/5`}
         </span>
       )}

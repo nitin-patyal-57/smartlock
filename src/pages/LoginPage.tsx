@@ -121,7 +121,7 @@ export default function LoginPage() {
                   autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@walnutmedical.in"
+                  placeholder="admin@walnutmedical.in / user@walnutmedical.in"
                   className="w-full pl-10 pr-4 py-3 bg-[#070b14] border border-slate-700/80 rounded-xl text-xs md:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-medium transition-all"
                 />
               </div>

@@ -28,7 +28,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { deviceService } from '@/services/deviceService'
-import { getHeadingDirection, formatTimeSafe, formatRelativeTime, isDeviceOnline } from '@/utils/helpers'
+import { cn, getHeadingDirection, formatTimeSafe, formatRelativeTime, isDeviceOnline } from '@/utils/helpers'
 
 type FilterType = 'all' | 'moving' | 'stationary' | 'online' | 'locked' | 'unlocked' | 'lowBattery'
 
@@ -247,169 +247,137 @@ export default function SmartLocksPage() {
             const isMoving = isOnline && ((d.gps?.speed || 0) > 1.5 || d.accelerometer?.motion === true)
 
             return (
-              <Card
+              <div
                 key={d.deviceId}
-                hover
-                padding="md"
-                className="group relative cursor-pointer border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#0d1629] hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-all duration-200 shadow-md shadow-black/15 hover:shadow-xl hover:shadow-black/25"
                 onClick={() => navigate(`/locks/${d.deviceId}`)}
+                className="group relative cursor-pointer rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-[#0b1324] p-5 md:p-6 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-700 shadow-md dark:shadow-black/40 hover:shadow-xl"
               >
-                {/* Header: Title & Badges */}
+                {/* Header: Title, IMEI & Status Pill + Trash */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2.5 w-2.5">
-                        {isOnline ? (
-                          <>
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-90" />
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                          </>
-                        ) : (
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
-                        )}
-                      </span>
-                      <h3 className="truncate text-base font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-400 transition-colors">
-                        {d.deviceName || d.deviceId}
-                      </h3>
-                    </div>
-                    <p className="mt-0.5 font-mono text-[11px] font-semibold text-slate-400 dark:text-slate-400">
-                      IMEI: <span className="text-slate-700 dark:text-slate-300">{d.deviceId}</span>
-                      {d.device?.modelId ? ` · ${d.device.modelId}` : ''}
+                    <h3 className="truncate text-base md:text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-400 transition-colors">
+                      {d.deviceName || d.deviceId}
+                    </h3>
+                    <p className="mt-0.5 font-mono text-xs text-slate-500 dark:text-slate-400">
+                      IMEI: {d.deviceId}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <StatusBadge
-                      label={isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}
-                      variant={isOnline ? (isMoving ? 'success' : 'info') : 'danger'}
-                      pulse={isOnline && isMoving}
-                    />
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
+                        isOnline
+                          ? isMoving
+                            ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
+                            : 'bg-[#132238] text-[#38bdf8] border-[#1e3a5f]'
+                          : 'bg-rose-950/40 text-rose-400 border-rose-800/50'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          isOnline
+                            ? isMoving
+                              ? 'bg-emerald-400 animate-pulse'
+                              : 'bg-[#38bdf8]'
+                            : 'bg-rose-400'
+                        )}
+                      />
+                      <span>{isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}</span>
+                    </span>
+
                     <button
                       onClick={(e) => handleDelete(e, d)}
                       disabled={deletingId === d.deviceId}
                       title="Remove smart lock"
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
+                      className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Telemetry Metrics Grid - Vibrant & Bold */}
-                <div className="mt-4 grid grid-cols-2 gap-2.5 rounded-xl bg-slate-50 dark:bg-[#121c35] p-3 border border-slate-200/80 dark:border-slate-750/70 shadow-inner">
-                  <div className="space-y-0.5">
-                    <span className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-sky-500 dark:text-sky-400">
-                      <Gauge className="h-3.5 w-3.5" /> Speed
-                    </span>
-                    <p className="font-mono text-sm font-black text-slate-900 dark:text-white">
-                      {isOnline ? (
-                        <>
-                          <span className="text-sky-600 dark:text-sky-300">{(d.gps?.speed || 0).toFixed(1)}</span> <span className="text-[10px] font-bold text-slate-400">km/h</span>
-                        </>
-                      ) : (
-                        <span className="text-rose-500/90 dark:text-rose-400 font-bold text-xs">Offline</span>
-                      )}
+                {/* 3 Metric Boxes (Speed, Satellites, Heading) */}
+                <div className="mt-4 grid grid-cols-3 gap-2.5">
+                  <div className="rounded-xl bg-slate-100 dark:bg-[#131d31] p-3 text-center border border-slate-200/60 dark:border-slate-800/60">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Speed</span>
+                    <p className="mt-1 font-mono text-sm md:text-base font-bold text-slate-900 dark:text-white">
+                      {isOnline ? `${(d.gps?.speed || 0).toFixed(1)} km/h` : '0.0 km/h'}
                     </p>
                   </div>
 
-                  <div className="space-y-0.5">
-                    <span className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-emerald-500 dark:text-emerald-400">
-                      {isOnline && d.lock?.lockStatus ? (
-                        <Lock className="h-3.5 w-3.5 text-emerald-500" />
-                      ) : (
-                        <Unlock className="h-3.5 w-3.5 text-amber-500" />
-                      )}
-                      Lock Status
-                    </span>
-                    <p className="text-sm font-black">
-                      {isOnline ? (
-                        d.lock?.lockStatus ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">🔒 Locked</span>
-                        ) : (
-                          <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">🔓 Unlocked</span>
-                        )
-                      ) : (
-                        <span className="text-rose-500/90 dark:text-rose-400 font-bold text-xs">Offline</span>
-                      )}
+                  <div className="rounded-xl bg-slate-100 dark:bg-[#131d31] p-3 text-center border border-slate-200/60 dark:border-slate-800/60">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Satellites</span>
+                    <p className="mt-1 font-mono text-sm md:text-base font-bold text-blue-600 dark:text-[#38bdf8]">
+                      {isOnline && d.gps?.satellites !== undefined ? d.gps.satellites : 0}
                     </p>
                   </div>
 
-                  <div className="space-y-0.5">
-                    <span className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-indigo-500 dark:text-indigo-400">
-                      <Navigation className="h-3.5 w-3.5" /> GPS Fix
-                    </span>
-                    <p className="text-sm font-black text-slate-900 dark:text-white">
-                      {isOnline && d.gps?.satellites ? (
-                        <>
-                          <span className="text-indigo-600 dark:text-indigo-300">{d.gps.satellites} Sats</span> <span className="text-[10px] font-bold text-slate-400">({d.gps?.fixType || '3D'})</span>
-                        </>
-                      ) : (
-                        <span className="text-rose-500/90 dark:text-rose-400 font-bold text-xs">Offline</span>
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <span className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-teal-500 dark:text-teal-400">
-                      <Compass className="h-3.5 w-3.5" /> Heading
-                    </span>
-                    <p className="text-sm font-black text-slate-900 dark:text-white">
-                      {isOnline && d.gps?.heading !== undefined ? (
-                        <>
-                          <span className="text-teal-600 dark:text-teal-300">{Math.round(d.gps.heading)}°</span> <span className="text-[10px] font-bold text-slate-400">{getHeadingDirection(d.gps.heading)}</span>
-                        </>
-                      ) : (
-                        <span className="text-rose-500/90 dark:text-rose-400 font-bold text-xs">Offline</span>
-                      )}
+                  <div className="rounded-xl bg-slate-100 dark:bg-[#131d31] p-3 text-center border border-slate-200/60 dark:border-slate-800/60">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Heading</span>
+                    <p className="mt-1 font-mono text-sm md:text-base font-bold text-slate-900 dark:text-white">
+                      {isOnline && d.gps?.heading !== undefined
+                        ? `${Math.round(d.gps.heading)}° ${getHeadingDirection(d.gps.heading)}`
+                        : '0° N'}
                     </p>
                   </div>
                 </div>
 
-                {/* Location / Address */}
-                <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                  <span className="truncate">
-                    {isOnline
-                      ? (d.gps?.lastLocation || `${d.gps?.latitude?.toFixed(4)}, ${d.gps?.longitude?.toFixed(4)}`)
-                      : <span className="text-slate-400 font-medium">Device Offline &middot; GPS Disconnected</span>}
-                  </span>
-                </div>
-
-                {/* Footer: Relative Time & Cellular / Battery Indicators */}
-                <div className="mt-4 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-3 text-xs">
-                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-semibold text-[11px]">
-                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                {/* Coords & Carrier */}
+                <div className="mt-3.5 space-y-1 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  <div>
+                    Coords:{' '}
+                    <span className="font-mono">
+                      {isOnline && d.gps?.latitude
+                        ? `${d.gps.latitude.toFixed(5)}, ${d.gps.longitude.toFixed(5)}`
+                        : d.gps?.lastLocation || '30.65695, 76.72962'}
+                    </span>
+                  </div>
+                  <div>
+                    Carrier:{' '}
                     <span>
+                      {d.cellular?.operator || 'JIO 4G'} ({d.cellular?.networkType || 'LTE'})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Last Seen Bar */}
+                <div className="mt-3.5 flex items-center justify-between rounded-xl bg-slate-100 dark:bg-[#09101f] border border-slate-200 dark:border-slate-800/80 px-3.5 py-2 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                    <Clock className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <span className="text-slate-500 dark:text-slate-400">Last Seen:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
                       {isOnline ? formatRelativeTime(d.lastSeen) : 'Offline'}
                     </span>
                   </div>
+                  <span className="font-mono text-slate-400 text-[11px]">
+                    {d.lastSeen ? formatTimeSafe(d.lastSeen, 'HH:mm:ss') : '--:--:--'}
+                  </span>
+                </div>
 
-                  <div className="flex items-center gap-3">
-                    {isOnline ? (
-                      <>
-                        <BatteryIndicator
-                          level={d.power?.batteryPercentage ?? 0}
-                          size="sm"
-                          showLabel
-                        />
-                        <SignalIndicator
-                          rssi={d.cellular?.rssi ?? 0}
-                          signalQuality={d.cellular?.signalQuality ?? 0}
-                          signalText={d.cellular?.signal}
-                          size="sm"
-                          showText
-                        />
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                          Offline
-                        </span>
-                      </div>
-                    )}
+                {/* Bottom Row: Battery % (Voltage) & Signal Good */}
+                <div className="mt-4 flex items-end justify-between">
+                  <div>
+                    <div className="text-base font-bold text-slate-900 dark:text-white">
+                      {d.power?.batteryPercentage ?? 0}%
+                    </div>
+                    <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                      ({(d.power?.batteryVoltage ?? 3.68).toFixed(2)}V)
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <SignalIndicator
+                      rssi={d.cellular?.rssi ?? 70}
+                      signalQuality={d.cellular?.signalQuality ?? 4}
+                      signalText={d.cellular?.signal || 'GOOD'}
+                      size="sm"
+                      showText
+                    />
                   </div>
                 </div>
-              </Card>
+              </div>
             )
           })}
         </div>

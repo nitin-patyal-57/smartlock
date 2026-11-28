@@ -18,7 +18,6 @@ const routeTitles: Record<string, string> = {
   '/battery-history': 'Battery History',
   '/lock-activity': 'Lock Activity',
   '/alerts': 'Alerts',
-  '/reports': 'Reports',
   '/settings': 'Settings',
 }
 
