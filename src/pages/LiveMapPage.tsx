@@ -4,6 +4,9 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import { useDevices } from '@/hooks/useDevices'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import OfflineDeviceModal from '@/components/devices/OfflineDeviceModal'
+import ToastNotification from '@/components/ui/ToastNotification'
+import { isDeviceOnline } from '@/utils/helpers'
 import {
   MapPin, Battery, Lock, Unlock, Navigation, Gauge,
   Compass, Satellite, Eye, Crosshair, ArrowRight
@@ -50,11 +53,12 @@ function MapFollowController({
 function DevicePopupContent({
   device,
   isMoving,
+  onOpenDetails,
 }: {
   device: SmartLockDevice
   isMoving: boolean
+  onOpenDetails: (d: SmartLockDevice) => void
 }) {
-  const navigate = useNavigate()
   return (
     <div className="min-w-[220px] p-1 font-sans">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
@@ -117,8 +121,8 @@ function DevicePopupContent({
       </div>
 
       <button
-        onClick={() => navigate(`/locks/${device.deviceId}`)}
-        className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700"
+        onClick={() => onOpenDetails(device)}
+        className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 cursor-pointer"
       >
         <span>Open Device Telemetry</span>
         <ArrowRight className="h-3 w-3" />
@@ -134,6 +138,20 @@ export default function LiveMapPage() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [isFollowing, setIsFollowing] = useState<boolean>(false)
   const [filterMode, setFilterMode] = useState<'all' | 'moving' | 'stationary'>('all')
+  const [offlineDevice, setOfflineDevice] = useState<SmartLockDevice | null>(null)
+  const [toastMessage, setToastMessage] = useState<{ title: string; subtitle?: string } | null>(null)
+
+  const handleOpenDetails = (device: SmartLockDevice) => {
+    if (!isDeviceOnline(device)) {
+      setOfflineDevice(device)
+      setToastMessage({
+        title: `Device "${device.deviceName || device.deviceId}" is Offline`,
+        subtitle: `IMEI ${device.deviceId} is not broadcasting live MQTT telemetry. Overview is available once online.`,
+      })
+      return
+    }
+    navigate(`/locks/${device.deviceId}`)
+  }
 
   // In-memory breadcrumb trails for active session
   const [trails, setTrails] = useState<Record<string, [number, number][]>>({})
@@ -333,7 +351,7 @@ export default function LiveMapPage() {
               }}
             >
               <Popup>
-                <DevicePopupContent device={device} isMoving={moving} />
+                <DevicePopupContent device={device} isMoving={moving} onOpenDetails={handleOpenDetails} />
               </Popup>
             </Marker>
           )
@@ -440,8 +458,8 @@ export default function LiveMapPage() {
 
             {/* Open Device Telemetry Details */}
             <button
-              onClick={() => navigate(`/locks/${activeDevice.deviceId}`)}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition"
+              onClick={() => handleOpenDetails(activeDevice)}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition cursor-pointer"
             >
               <span>View Device Details & Controls</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -449,6 +467,20 @@ export default function LiveMapPage() {
           </Card>
         </div>
       )}
+
+      {/* Offline Device Alert Modal */}
+      <OfflineDeviceModal
+        device={offlineDevice}
+        onClose={() => setOfflineDevice(null)}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isOpen={!!toastMessage}
+        message={toastMessage?.title || ''}
+        submessage={toastMessage?.subtitle}
+        onClose={() => setToastMessage(null)}
+      />
     </div>
   )
 }

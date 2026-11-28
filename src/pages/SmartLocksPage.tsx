@@ -10,6 +10,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import AddDeviceModal from '@/components/devices/AddDeviceModal'
+import OfflineDeviceModal from '@/components/devices/OfflineDeviceModal'
+import ToastNotification from '@/components/ui/ToastNotification'
 import {
   Search,
   LayoutGrid,
@@ -41,7 +43,22 @@ export default function SmartLocksPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [offlineDevice, setOfflineDevice] = useState<SmartLockDevice | null>(null)
+  const [toastMessage, setToastMessage] = useState<{ title: string; subtitle?: string } | null>(null)
   const [, setTick] = useState(0)
+
+  const handleDeviceCardClick = (d: SmartLockDevice) => {
+    const isOnline = isDeviceOnline(d)
+    if (!isOnline) {
+      setOfflineDevice(d)
+      setToastMessage({
+        title: `Device "${d.deviceName || d.deviceId}" is Offline`,
+        subtitle: `IMEI ${d.deviceId} is not broadcasting live MQTT telemetry. Overview is available once online.`,
+      })
+      return
+    }
+    navigate(`/locks/${d.deviceId}`)
+  }
 
   // Auto-tick every 5 seconds to keep relative time fresh ("Just now", "5s ago", etc.)
   useEffect(() => {
@@ -249,7 +266,7 @@ export default function SmartLocksPage() {
             return (
               <div
                 key={d.deviceId}
-                onClick={() => navigate(`/locks/${d.deviceId}`)}
+                onClick={() => handleDeviceCardClick(d)}
                 className="group relative cursor-pointer rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-[#0b1324] p-5 md:p-6 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-700 shadow-md dark:shadow-black/40 hover:shadow-xl"
               >
                 {/* Header: Title, IMEI & Status Pill + Trash */}
@@ -406,7 +423,7 @@ export default function SmartLocksPage() {
                   return (
                     <tr
                       key={d.deviceId}
-                      onClick={() => navigate(`/locks/${d.deviceId}`)}
+                      onClick={() => handleDeviceCardClick(d)}
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 cursor-pointer transition"
                     >
                       <td className="px-4 py-3">
@@ -505,6 +522,20 @@ export default function SmartLocksPage() {
           navigate(`/locks/${dev.deviceId}`)
         }}
         addDeviceFn={addDevice}
+      />
+
+      {/* Offline Device Alert Modal */}
+      <OfflineDeviceModal
+        device={offlineDevice}
+        onClose={() => setOfflineDevice(null)}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isOpen={!!toastMessage}
+        message={toastMessage?.title || ''}
+        submessage={toastMessage?.subtitle}
+        onClose={() => setToastMessage(null)}
       />
     </div>
   )

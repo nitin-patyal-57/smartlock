@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useDevices, useActivityEvents, useAlerts } from '@/hooks/useDevices'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -6,6 +6,9 @@ import BatteryIndicator from '@/components/ui/BatteryIndicator'
 import SignalIndicator from '@/components/ui/SignalIndicator'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ErrorState from '@/components/ui/ErrorState'
+import OfflineDeviceModal from '@/components/devices/OfflineDeviceModal'
+import ToastNotification from '@/components/ui/ToastNotification'
+import type { SmartLockDevice } from '@/types/smartlock'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
@@ -26,6 +29,21 @@ export default function OverviewPage() {
   const { events, loading: eventsLoading, error: eventsError, refetch: refetchEvents } = useActivityEvents()
   const { alerts, loading: alertsLoading, error: alertsError, refetch: refetchAlerts } = useAlerts()
   const navigate = useNavigate()
+  const [offlineDevice, setOfflineDevice] = useState<SmartLockDevice | null>(null)
+  const [toastMessage, setToastMessage] = useState<{ title: string; subtitle?: string } | null>(null)
+
+  const handleDeviceClick = (device: SmartLockDevice) => {
+    const isOnline = isDeviceOnline(device)
+    if (!isOnline) {
+      setOfflineDevice(device)
+      setToastMessage({
+        title: `Device "${device.deviceName || device.deviceId}" is Offline`,
+        subtitle: `IMEI ${device.deviceId} is not broadcasting live MQTT telemetry. Overview is available once online.`,
+      })
+      return
+    }
+    navigate(`/locks/${device.deviceId}`)
+  }
 
   const batteryData = useMemo(() => devices
     .filter((d) => isDeviceOnline(d) && (d.power?.batteryPercentage ?? 0) > 0)
@@ -194,7 +212,7 @@ export default function OverviewPage() {
               return (
                 <div
                   key={device.deviceId}
-                  onClick={() => navigate(`/locks/${device.deviceId}`)}
+                  onClick={() => handleDeviceClick(device)}
                   className="flex items-center gap-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121c35] p-3.5 transition-all duration-200 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-black/20 cursor-pointer"
                 >
                   <div className="relative flex-shrink-0">
@@ -285,6 +303,20 @@ export default function OverviewPage() {
           </div>
         </Card>
       )}
+
+      {/* Offline Device Alert Modal */}
+      <OfflineDeviceModal
+        device={offlineDevice}
+        onClose={() => setOfflineDevice(null)}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isOpen={!!toastMessage}
+        message={toastMessage?.title || ''}
+        submessage={toastMessage?.subtitle}
+        onClose={() => setToastMessage(null)}
+      />
     </div>
   )
 }
