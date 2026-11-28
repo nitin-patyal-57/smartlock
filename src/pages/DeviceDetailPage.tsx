@@ -298,8 +298,8 @@ export default function DeviceDetailPage() {
         padding="lg"
         className={`border-2 shadow-xl transition-all duration-300 ${
           d.lock?.lockStatus
-            ? 'border-emerald-500/50 bg-gradient-to-r from-emerald-500/15 via-[#0d1629] to-[#0d1629] shadow-emerald-500/10'
-            : 'border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-[#0d1629] to-[#0d1629] shadow-amber-500/10'
+            ? 'border-emerald-500/50 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/15 dark:via-[#0d1629] dark:to-[#0d1629] shadow-emerald-500/10'
+            : 'border-amber-500/50 bg-gradient-to-r from-amber-50 via-white to-white dark:from-amber-500/15 dark:via-[#0d1629] dark:to-[#0d1629] shadow-amber-500/10'
         }`}
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

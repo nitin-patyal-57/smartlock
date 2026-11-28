@@ -7,7 +7,7 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#070b14] text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#070b14] text-slate-900 dark:text-slate-100">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />

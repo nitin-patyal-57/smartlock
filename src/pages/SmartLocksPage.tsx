@@ -208,7 +208,7 @@ export default function SmartLocksPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by IMEI, Name, Model, or Operator..."
-          className="w-full rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-800 dark:bg-[#0d1629] dark:text-white dark:placeholder-slate-500 shadow-xs"
+          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-800 dark:bg-[#0d1629] dark:text-white dark:placeholder-slate-500 shadow-xs"
         />
       </div>
 
@@ -218,10 +218,10 @@ export default function SmartLocksPage() {
           <button
             key={btn.key}
             onClick={() => setFilter(btn.key)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+            className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
               filter === btn.key
                 ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black shadow-md shadow-emerald-500/25 border-transparent'
-                : 'bg-white dark:bg-[#0d1629] text-slate-700 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700'
+                : 'bg-white dark:bg-[#0d1629] text-slate-700 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             {btn.label}
@@ -267,15 +267,15 @@ export default function SmartLocksPage() {
               <div
                 key={d.deviceId}
                 onClick={() => handleDeviceCardClick(d)}
-                className="group relative cursor-pointer rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-[#0b1324] p-5 md:p-6 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-700 shadow-md dark:shadow-black/40 hover:shadow-xl"
+                className="group relative cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0b1324] p-5 md:p-6 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-700 shadow-md dark:shadow-black/40 hover:shadow-xl"
               >
                 {/* Header: Title, IMEI & Status Pill + Trash */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base md:text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-400 transition-colors">
+                    <h3 className="truncate text-base md:text-lg font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                       {d.deviceName || d.deviceId}
                     </h3>
-                    <p className="mt-0.5 font-mono text-xs text-slate-500 dark:text-slate-400">
+                    <p className="mt-0.5 font-mono text-xs font-bold text-slate-600 dark:text-slate-400">
                       IMEI: {d.deviceId}
                     </p>
                   </div>
@@ -283,12 +283,12 @@ export default function SmartLocksPage() {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span
                       className={cn(
-                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border',
                         isOnline
                           ? isMoving
-                            ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
-                            : 'bg-[#132238] text-[#38bdf8] border-[#1e3a5f]'
-                          : 'bg-rose-950/40 text-rose-400 border-rose-800/50'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
+                            : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-[#132238] dark:text-[#38bdf8] dark:border-[#1e3a5f]'
+                          : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50'
                       )}
                     >
                       <span
@@ -296,9 +296,9 @@ export default function SmartLocksPage() {
                           'h-1.5 w-1.5 rounded-full',
                           isOnline
                             ? isMoving
-                              ? 'bg-emerald-400 animate-pulse'
-                              : 'bg-[#38bdf8]'
-                            : 'bg-rose-400'
+                              ? 'bg-emerald-500 animate-pulse'
+                              : 'bg-sky-500 dark:bg-[#38bdf8]'
+                            : 'bg-rose-500 dark:bg-rose-400'
                         )}
                       />
                       <span>{isOnline ? (isMoving ? 'Moving' : 'Parked') : 'Offline'}</span>
@@ -317,23 +317,23 @@ export default function SmartLocksPage() {
 
                 {/* 3 Metric Boxes (Speed, Satellites, Heading) */}
                 <div className="mt-4 grid grid-cols-3 gap-2.5">
-                  <div className="rounded-xl bg-slate-100 dark:bg-[#131d31] p-3 text-center border border-slate-200/60 dark:border-slate-800/60">
-                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Speed</span>
-                    <p className="mt-1 font-mono text-sm md:text-base font-bold text-slate-900 dark:text-white">
+                  <div className="rounded-xl bg-slate-50 dark:bg-[#131d31] p-3 text-center border border-slate-200 dark:border-slate-800/60">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Speed</span>
+                    <p className="mt-1 font-mono text-sm md:text-base font-black text-slate-900 dark:text-white">
                       {isOnline ? `${(d.gps?.speed || 0).toFixed(1)} km/h` : '0.0 km/h'}
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-slate-100 dark:bg-[#131d31] p-3 text-center border border-slate-200/60 dark:border-slate-800/60">
-                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Satellites</span>
-                    <p className="mt-1 font-mono text-sm md:text-base font-bold text-blue-600 dark:text-[#38bdf8]">
+                  <div className="rounded-xl bg-slate-50 dark:bg-[#131d31] p-3 text-center border border-slate-200 dark:border-slate-800/60">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Satellites</span>
+                    <p className="mt-1 font-mono text-sm md:text-base font-black text-blue-600 dark:text-[#38bdf8]">
                       {isOnline && d.gps?.satellites !== undefined ? d.gps.satellites : 0}
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-slate-100 dark:bg-[#131d31] p-3 text-center border border-slate-200/60 dark:border-slate-800/60">
-                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Heading</span>
-                    <p className="mt-1 font-mono text-sm md:text-base font-bold text-slate-900 dark:text-white">
+                  <div className="rounded-xl bg-slate-50 dark:bg-[#131d31] p-3 text-center border border-slate-200 dark:border-slate-800/60">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Heading</span>
+                    <p className="mt-1 font-mono text-sm md:text-base font-black text-slate-900 dark:text-white">
                       {isOnline && d.gps?.heading !== undefined
                         ? `${Math.round(d.gps.heading)}° ${getHeadingDirection(d.gps.heading)}`
                         : '0° N'}
@@ -342,33 +342,33 @@ export default function SmartLocksPage() {
                 </div>
 
                 {/* Coords & Carrier */}
-                <div className="mt-3.5 space-y-1 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                <div className="mt-3.5 space-y-1 text-xs text-slate-700 dark:text-slate-300 font-semibold">
                   <div>
-                    Coords:{' '}
-                    <span className="font-mono">
+                    <span className="text-slate-500 dark:text-slate-400">Coords:</span>{' '}
+                    <span className="font-mono text-slate-900 dark:text-slate-200 font-bold">
                       {isOnline && d.gps?.latitude
                         ? `${d.gps.latitude.toFixed(5)}, ${d.gps.longitude.toFixed(5)}`
                         : d.gps?.lastLocation || '30.65695, 76.72962'}
                     </span>
                   </div>
                   <div>
-                    Carrier:{' '}
-                    <span>
+                    <span className="text-slate-500 dark:text-slate-400">Carrier:</span>{' '}
+                    <span className="text-slate-900 dark:text-slate-200 font-bold">
                       {d.cellular?.operator || 'JIO 4G'} ({d.cellular?.networkType || 'LTE'})
                     </span>
                   </div>
                 </div>
 
                 {/* Last Seen Bar */}
-                <div className="mt-3.5 flex items-center justify-between rounded-xl bg-slate-100 dark:bg-[#09101f] border border-slate-200 dark:border-slate-800/80 px-3.5 py-2 text-xs">
-                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                <div className="mt-3.5 flex items-center justify-between rounded-xl bg-slate-50 dark:bg-[#09101f] border border-slate-200 dark:border-slate-800/80 px-3.5 py-2 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium">
                     <Clock className="h-4 w-4 text-emerald-500 shrink-0" />
-                    <span className="text-slate-500 dark:text-slate-400">Last Seen:</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Last Seen:</span>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {isOnline ? formatRelativeTime(d.lastSeen) : 'Offline'}
                     </span>
                   </div>
-                  <span className="font-mono text-slate-400 text-[11px]">
+                  <span className="font-mono text-slate-600 dark:text-slate-400 font-bold text-[11px]">
                     {d.lastSeen ? formatTimeSafe(d.lastSeen, 'HH:mm:ss') : '--:--:--'}
                   </span>
                 </div>
@@ -376,19 +376,19 @@ export default function SmartLocksPage() {
                 {/* Bottom Row: Battery % (Voltage) & Signal Good */}
                 <div className="mt-4 flex items-end justify-between">
                   <div>
-                    <div className="text-base font-bold text-slate-900 dark:text-white">
+                    <div className="text-base font-black text-slate-900 dark:text-white">
                       {d.power?.batteryPercentage ?? 0}%
                     </div>
-                    <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                    <div className="text-xs font-mono font-bold text-slate-600 dark:text-slate-400">
                       ({(d.power?.batteryVoltage ?? 3.68).toFixed(2)}V)
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <SignalIndicator
-                      rssi={d.cellular?.rssi ?? 70}
-                      signalQuality={d.cellular?.signalQuality ?? 4}
-                      signalText={d.cellular?.signal || 'GOOD'}
+                      rssi={isOnline ? (d.cellular?.rssi ?? 70) : -120}
+                      signalQuality={isOnline ? (d.cellular?.signalQuality ?? 4) : 0}
+                      signalText={isOnline ? (d.cellular?.signal || 'GOOD') : 'OFFLINE'}
                       size="sm"
                       showText
                     />

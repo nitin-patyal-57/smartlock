@@ -18,7 +18,10 @@ export default React.memo(function SignalIndicator({
   showText = false,
   className,
 }: SignalIndicatorProps) {
+  const isOffline = signalText === 'OFFLINE' || signalQuality === 0 || rssi <= -100
+
   const getBarCount = () => {
+    if (isOffline) return 0
     if (rssi > -50) return 4
     if (rssi > -70) return 3
     if (rssi > -85) return 2
@@ -49,7 +52,7 @@ export default React.memo(function SignalIndicator({
                   : barCount === 2
                     ? 'bg-amber-500'
                     : 'bg-red-500'
-                : 'bg-slate-200 dark:bg-slate-600',
+                : 'bg-slate-300 dark:bg-slate-700',
               heights[size][i]
             )}
           />
@@ -59,7 +62,13 @@ export default React.memo(function SignalIndicator({
         <span
           className={cn(
             'text-xs font-bold uppercase tracking-wider',
-            barCount >= 3 ? 'text-emerald-600 dark:text-[#38bdf8]' : barCount === 2 ? 'text-amber-500' : 'text-rose-500'
+            isOffline
+              ? 'text-rose-600 dark:text-rose-400'
+              : barCount >= 3
+                ? 'text-emerald-600 dark:text-[#38bdf8]'
+                : barCount === 2
+                  ? 'text-amber-500'
+                  : 'text-rose-500'
           )}
         >
           {signalText || `${signalQuality}/5`}

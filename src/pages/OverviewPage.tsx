@@ -218,16 +218,16 @@ export default function OverviewPage() {
                   <div className="relative flex-shrink-0">
                     {isOnline ? (
                       device.lock?.lockStatus ? (
-                        <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30">
                           <Lock className="h-6 w-6" />
                         </div>
                       ) : (
-                        <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30">
                           <Unlock className="h-6 w-6" />
                         </div>
                       )
                     ) : (
-                      <div className="p-2 rounded-xl bg-slate-500/10 text-slate-400 border border-slate-700/40">
+                      <div className="p-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-700/40">
                         <Lock className="h-6 w-6" />
                       </div>
                     )}
